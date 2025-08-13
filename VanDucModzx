@@ -3,7 +3,7 @@ local selectedTheme = "Default"
 local Window = Rayfield:CreateWindow({
    Name = "VanDucModz - Trau",
    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Van Duc Modz",
+   LoadingTitle = "99 Nights in the forest",
    LoadingSubtitle = "Script By VanDucModz",
    Theme = selectedTheme, -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
