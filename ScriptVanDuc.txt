@@ -3,7 +3,7 @@ loadstring(game:HttpGet(("https://raw.githubusercontent.com/daucobonhi/Ui-Redz-V
        local Window = MakeWindow({
          Hub = {
          Title = "VanDuc Modz",
-         Animation = "tele: vanduchackroblox"
+         Animation = "Văn Đức Modz"
          },
         Key = {
         KeySystem = false,
@@ -21,7 +21,7 @@ loadstring(game:HttpGet(("https://raw.githubusercontent.com/daucobonhi/Ui-Redz-V
   })
 
        MinimizeButton({
-       Image = "http://www.roblox.com/asset/?id=83190276951914",
+       Image = " http://www.roblox.com/asset/?id=92884036913797 ",
        Size = {60, 60},
        Color = Color3.fromRGB(10, 10, 10),
        Corner = true,
