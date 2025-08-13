@@ -1,14 +1,14 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local VănĐức = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local selectedTheme = "Default"
-local Window = Rayfield:CreateWindow({
+local Window = VanDuc:CreateWindow({
    Name = "Văn Đức Modz",
    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "99 Nights In The Forest",
-   LoadingSubtitle = "Script By Iliankytb",
+   LoadingTitle = "Văn Đức Modz (Trâu)🔥",
+   LoadingSubtitle = "Script by Văn Đức Modz ",
    Theme = selectedTheme, -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
+   DisableVanDucModzPrompts = false,
+   DisableBuildWarnings = false, -- Prevents VanDucModz from warning when the script has a version mismatch with the interface
 
    ConfigurationSaving = {
       Enabled = true,
@@ -1130,7 +1130,7 @@ while true do
 task.spawn(function()
 	local updatedInfo = getServerInfo()
 	local updatedContent = string.format(
-		"📌 PlaceId: %s\n🔑 JobId: %s\n🧪 IsStudio: %s\n👥 Players: %d/%d",
+		"🔥 PlaceId: %s\n📌 JobId: %s\n💬 IsStudio: %s\n👥 Players: %d/%d",
 		updatedInfo.PlaceId,
 		updatedInfo.JobId,
 		
