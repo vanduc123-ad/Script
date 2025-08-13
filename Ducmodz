@@ -338,9 +338,9 @@ local function copyToClipboard(text)
     end
 end
 local DiscordLink = DiscordTab:CreateButton({
-   Name = "Discord Link",
+   Name = "Văn Đức Link",
    Callback = function()
-copyToClipboard("https://discord.gg/E2TqYRsRP4")
+copyToClipboard(" https://t.me/vanduchackroblox")
 end,
 })
 local PlayerNoclipToggle = PlayerTab:CreateToggle({
