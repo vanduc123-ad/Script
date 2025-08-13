@@ -1,4 +1,4 @@
-local VanDuc = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local selectedTheme = "Default"
 local Window = VanDuc:CreateWindow({
    Name = "Văn Đức Modz",
@@ -7,7 +7,7 @@ local Window = VanDuc:CreateWindow({
    LoadingSubtitle = "Script by Văn Đức Modz ",
    Theme = selectedTheme, -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
-   DisableVanDucModzPrompts = false,
+   DisableRayfieldPrompts = false,
    DisableBuildWarnings = false, -- Prevents VanDucModz from warning when the script has a version mismatch with the interface
 
    ConfigurationSaving = {
@@ -1130,7 +1130,7 @@ while true do
 task.spawn(function()
 	local updatedInfo = getServerInfo()
 	local updatedContent = string.format(
-		"🔥 PlaceId: %s\n📌 JobId: %s\n💬 IsStudio: %s\n👥 Players: %d/%d",
+		"📌 PlaceId: %s\n📌 JobId: %s\n💬 IsStudio: %s\n👥 Players: %d/%d",
 		updatedInfo.PlaceId,
 		updatedInfo.JobId,
 		
