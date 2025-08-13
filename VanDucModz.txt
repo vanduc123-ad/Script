@@ -33,18 +33,18 @@ local Window = Rayfield:CreateWindow({
       Key = {"Hello"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
    }
 })
-local InfoTab = Window:CreateTab("Info")
-local PlayerTab = Window:CreateTab("Player")
-local EspTab = Window:CreateTab("Esp")
-local GameTab = Window:CreateTab("Game")
-local BringItemTab = Window:CreateTab("Bring Item")
-local DiscordTab = Window:CreateTab("Discord")
-local SettingsTab = Window:CreateTab("Settings")
+local InfoTab = Window:CreateTab("Thông tin")
+local PlayerTab = Window:CreateTab("Người chơi")
+local EspTab = Window:CreateTab("Định vị")
+local GameTab = Window:CreateTab("Trò chơi")
+local BringItemTab = Window:CreateTab("Lấy vật phẩm")
+local DiscordTab = Window:CreateTab("Văn Đức Modz")
+local SettingsTab = Window:CreateTab("Cài đặt")
 local ActiveEspItems,ActiveDistanceEsp,ActiveEspEnemy,ActiveEspChildren,ActiveEspPeltTrader,ActivateFly,AlrActivatedFlyPC,ActiveNoCooldownPrompt,ActiveNoFog,
 ActiveAuoChopTree,ActiveKillAura,ActivateInfiniteJump,ActiveNoclip = false,false,false,false,false,false,false,false,false,false,false,false,false
 local ParagraphInfoServer = InfoTab:CreateParagraph({Title = "Info", Content = "Loading"})
-local DistanceForKillAura = 25
-local DistanceForAutoChopTree = 25
+local DistanceForKillAura = 300
+local DistanceForAutoChopTree = 100
 Rayfield:Notify({
    Title = "Cheat Version",
    Content = "V.0.19",
