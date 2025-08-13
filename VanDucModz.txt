@@ -1,4 +1,4 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local VanDucModz = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local selectedTheme = "Default"
 local Window = VanDuc:CreateWindow({
    Name = "Văn Đức Modz",
@@ -7,7 +7,7 @@ local Window = VanDuc:CreateWindow({
    LoadingSubtitle = "Script by Văn Đức Modz ",
    Theme = selectedTheme, -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
-   DisableRayfieldPrompts = false,
+   DisableVanDucModzPrompts = false,
    DisableBuildWarnings = false, -- Prevents VanDucModz from warning when the script has a version mismatch with the interface
 
    ConfigurationSaving = {
@@ -43,8 +43,8 @@ local SettingsTab = Window:CreateTab("Cài đặt")
 local ActiveEspItems,ActiveDistanceEsp,ActiveEspEnemy,ActiveEspChildren,ActiveEspPeltTrader,ActivateFly,AlrActivatedFlyPC,ActiveNoCooldownPrompt,ActiveNoFog,
 ActiveAuoChopTree,ActiveKillAura,ActivateInfiniteJump,ActiveNoclip = false,false,false,false,false,false,false,false,false,false,false,false,false
 local ParagraphInfoServer = InfoTab:CreateParagraph({Title = "Info", Content = "Loading"})
-local DistanceForKillAura = 300
-local DistanceForAutoChopTree = 100
+local DistanceForKillAura = 25
+local DistanceForAutoChopTree = 25
 Rayfield:Notify({
    Title = "Cheat Version",
    Content = "V.0.19",
