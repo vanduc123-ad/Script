@@ -1,4 +1,3 @@
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local selectedTheme = "Default"
 local Window = Rayfield:CreateWindow({
@@ -1112,11 +1111,12 @@ local Themes = {
    ["Light"] = "Light",
    ["Ocean"] = "Ocean",
    ["Serenity"] = "Serenity"
+   ["Red"] = "Red"
 }
 
 local Dropdown = SettingsTab:CreateDropdown({
    Name = "Change Theme",
-   Options = {"Default", "Amber Glow", "Amethyst", "Bloom", "Dark Blue", "Green", "Light", "Ocean", "Serenity"},
+   Options = {"Default", "Amber Glow", "Amethyst", "Bloom", "Dark Blue", "Green", "Light", "Ocean", "Serenity", "Red"},
    CurrentOption = selectedTheme,  -- pour afficher ce qui est réellement chargé
    Flag = "ThemeSelection",
    Callback = function(Selected)
