@@ -1111,8 +1111,7 @@ local Themes = {
    ["Light"] = "Light",
    ["Ocean"] = "Ocean",
    ["Serenity"] = "Serenity"
-   ["Red"] = "Red"
-})
+}
 
 local Dropdown = SettingsTab:CreateDropdown({
    Name = "Change Theme",
