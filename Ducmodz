@@ -336,10 +336,10 @@ local function copyToClipboard(text)
         warn("setclipboard is not supported in this environment.")
     end
 end
-local DiscordLink = DiscordTab:CreateButton({
+local Telegram Link = VanDucTab:CreateButton({
    Name = "Văn Đức Link",
    Callback = function()
-copyToClipboard(" https://t.me/vanduchackroblox")
+copyToClipboard(" https://t.me/VanDucModz")
 end,
 })
 local PlayerNoclipToggle = PlayerTab:CreateToggle({
