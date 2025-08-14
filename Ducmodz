@@ -336,7 +336,7 @@ local function copyToClipboard(text)
         warn("setclipboard is not supported in this environment.")
     end
 end
-local Telegram Link = VanDucTab:CreateButton({
+local TelegramLink = DiscordTab:CreateButton({
    Name = "Văn Đức Link",
    Callback = function()
 copyToClipboard(" https://t.me/VanDucModz")
