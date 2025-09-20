@@ -1,0 +1,480 @@
+-- LocalScript: Modz Gaming GUI (Full - Fade In + Tab Fade + Swords List & Equip)
+-- Ghi chú: An toàn, KHÔNG chứa auto-farm/teleport. Equip chỉ thực hiện với Tool có trong Backpack/Character.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Helper: small notification inside main
+local function notify(parent, text)
+    local notif = Instance.new("TextLabel")
+    notif.Size = UDim2.new(0.9, 0, 0, 28)
+    notif.Position = UDim2.new(0.05, 0, 1, -38)
+    notif.AnchorPoint = Vector2.new(0, 1)
+    notif.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    notif.BackgroundTransparency = 0.1
+    notif.TextColor3 = Color3.fromRGB(235,235,235)
+    notif.Font = Enum.Font.Gotham
+    notif.TextSize = 14
+    notif.Text = text
+    notif.Parent = parent
+    Instance.new("UICorner", notif).CornerRadius = UDim.new(0,6)
+    notif.ZIndex = 50
+    notif.TextTransparency = 1
+    TweenService:Create(notif, TweenInfo.new(0.18), {TextTransparency = 0}):Play()
+    task.delay(1.6, function()
+        TweenService:Create(notif, TweenInfo.new(0.18), {TextTransparency = 1}):Play()
+        game.Debris:AddItem(notif, 0.22)
+    end)
+end
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ModzGamingGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Main frame (start hidden then fade in)
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 460, 0, 320)
+main.Position = UDim2.new(0.5, -230, 0.5, -160)
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.BackgroundColor3 = Color3.fromRGB(30,30,35)
+main.BackgroundTransparency = 1
+main.Parent = screenGui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,16)
+
+-- Fade in main
+TweenService:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+    BackgroundTransparency = 0
+}):Play()
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,40)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundColor3 = Color3.fromRGB(45,45,55)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Text = "Modz Gaming"
+title.Parent = main
+Instance.new("UICorner", title).CornerRadius = UDim.new(0,12)
+TweenService:Create(title, TweenInfo.new(0.6), {BackgroundTransparency = 0}):Play()
+
+-- Avatar
+local avatar = Instance.new("ImageLabel")
+avatar.Size = UDim2.new(0,64,0,64)
+avatar.Position = UDim2.new(0,16,0,56)
+avatar.BackgroundTransparency = 1
+avatar.Image = "rbxassetid://123721329765902"
+avatar.Parent = main
+TweenService:Create(avatar, TweenInfo.new(0.6), {BackgroundTransparency = 0}):Play()
+
+-- Info box
+local infoFrame = Instance.new("Frame")
+infoFrame.Size = UDim2.new(0,340,0,80)
+infoFrame.Position = UDim2.new(0,96,0,56)
+infoFrame.BackgroundTransparency = 1
+infoFrame.Parent = main
+TweenService:Create(infoFrame, TweenInfo.new(0.6), {BackgroundTransparency = 0}):Play()
+
+local function makeLabel(y, text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1,0,0,24)
+    lbl.Position = UDim2.new(0,0,0,y)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 16
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextColor3 = Color3.fromRGB(230,230,230)
+    lbl.Text = text
+    lbl.Parent = infoFrame
+    return lbl
+end
+
+local nameLabel = makeLabel(0, "Player: "..player.Name)
+local levelLabel = makeLabel(28, "Level: -")
+local fruitLabel = makeLabel(54, "Fruits: -")
+
+-- Tabs bar
+local tabsBar = Instance.new("Frame")
+tabsBar.Size = UDim2.new(1, -32, 0, 36)
+tabsBar.Position = UDim2.new(0,16,0,150)
+tabsBar.BackgroundTransparency = 1
+tabsBar.Parent = main
+local UIListLayout = Instance.new("UIListLayout", tabsBar)
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout.Padding = UDim.new(0,8)
+
+local function makeTabButton(text)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,140,1,0)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,60)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.fromRGB(200,200,200)
+    btn.Text = text
+    btn.Parent = tabsBar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+    return btn
+end
+
+local tab1Btn = makeTabButton("Info")
+local tab2Btn = makeTabButton("Functions")
+local tab3Btn = makeTabButton("Swords")
+
+-- Content holder
+local contentHolder = Instance.new("Frame")
+contentHolder.Size = UDim2.new(1, -32, 1, -200)
+contentHolder.Position = UDim2.new(0,16,0,196)
+contentHolder.BackgroundColor3 = Color3.fromRGB(35,35,45)
+contentHolder.Parent = main
+Instance.new("UICorner", contentHolder).CornerRadius = UDim.new(0,12)
+
+-- Panels
+local panels = {}
+local function makePanel(name)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1,0,1,0)
+    f.BackgroundTransparency = 1
+    f.Visible = false
+    f.Name = name
+    f.Parent = contentHolder
+    panels[name] = f
+    return f
+end
+
+local infoPanel = makePanel("Info")
+local funcPanel = makePanel("Functions")
+local swordPanel = makePanel("Swords")
+infoPanel.Visible = true
+
+-- Fade tab function (tween background transparency)
+local function fadeTo(panelName, btn)
+    for n,p in pairs(panels) do
+        if n == panelName then
+            p.Visible = true
+            p.BackgroundTransparency = 1
+            TweenService:Create(p, TweenInfo.new(0.28), {BackgroundTransparency = 0}):Play()
+        else
+            if p.Visible then
+                TweenService:Create(p, TweenInfo.new(0.28), {BackgroundTransparency = 1}):Play()
+                task.delay(0.28, function() p.Visible = false end)
+            end
+        end
+    end
+    -- highlight tab
+    for _, b in pairs(tabsBar:GetChildren()) do
+        if b:IsA("TextButton") then
+            b.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            b.TextColor3 = Color3.fromRGB(200,200,200)
+        end
+    end
+    btn.BackgroundColor3 = Color3.fromRGB(80,120,200)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+end
+
+tab1Btn.MouseButton1Click:Connect(function() fadeTo("Info", tab1Btn) end)
+tab2Btn.MouseButton1Click:Connect(function() fadeTo("Functions", tab2Btn) end)
+tab3Btn.MouseButton1Click:Connect(function() fadeTo("Swords", tab3Btn) end)
+
+-- Update info (level + fruits)
+RunService.RenderStepped:Connect(function()
+    local levelText = "-"
+    local leaderstats = player:FindFirstChild("leaderstats")
+    if leaderstats then
+        local lvl = leaderstats:FindFirstChildWhichIsA and leaderstats:FindFirstChild("Level")
+        if lvl then levelText = tostring(lvl.Value) end
+    end
+    levelLabel.Text = "Level: "..levelText
+
+    -- Fruits scan (Backpack + Character)
+    local fruits = {}
+    for _, c in ipairs(player.Backpack:GetChildren()) do
+        if c:IsA("Tool") and string.find(c.Name:lower(), "fruit") then
+            table.insert(fruits, c.Name)
+        end
+    end
+    for _, c in ipairs((player.Character or {}):GetChildren() or {}) do
+        if c:IsA("Tool") and string.find(c.Name:lower(), "fruit") then
+            table.insert(fruits, c.Name)
+        end
+    end
+    fruitLabel.Text = #fruits > 0 and "Fruits: "..table.concat(fruits, ", ") or "Fruits: -"
+end)
+
+-- FUNCTIONS PANEL (placeholders)
+local function addButton(parent, text, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,34)
+    btn.Position = UDim2.new(0,0,0,y)
+    btn.BackgroundColor3 = Color3.fromRGB(55,55,70)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.fromRGB(240,240,240)
+    btn.Text = text
+    btn.Parent = parent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+    btn.MouseButton1Click:Connect(function()
+        notify(main, text.." (placeholder, không auto-cheat)")
+    end)
+    return btn
+end
+
+addButton(funcPanel, "Farm Level", 0)
+addButton(funcPanel, "Đánh quái gần", 44)
+addButton(funcPanel, "Đánh quái tự chọn", 88)
+addButton(funcPanel, "Farm Boss", 132)
+addButton(funcPanel, "Farm Chest", 176)
+
+-- ===== SWORDS PANEL: list, quick equip, refresh =====
+local tip = Instance.new("TextLabel", swordPanel)
+tip.Size = UDim2.new(1, -16, 0, 20)
+tip.Position = UDim2.new(0,8,0,6)
+tip.BackgroundTransparency = 1
+tip.Font = Enum.Font.Gotham
+tip.TextSize = 14
+tip.TextColor3 = Color3.fromRGB(220,220,220)
+tip.Text = "Chọn Sea để Equip (nếu Tool có trong Backpack/Character). Dùng Refresh để quét lại."
+-- Quick buttons row
+local quickRow = Instance.new("Frame", swordPanel)
+quickRow.Size = UDim2.new(1, -16, 0, 36)
+quickRow.Position = UDim2.new(0,8,0,34)
+quickRow.BackgroundTransparency = 1
+local qLayout = Instance.new("UIListLayout", quickRow)
+qLayout.FillDirection = Enum.FillDirection.Horizontal
+qLayout.Padding = UDim.new(0,8)
+
+local function makeQuickBtn(text)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(0, 136, 1, 0)
+    b.Font = Enum.Font.GothamSemibold
+    b.TextSize = 14
+    b.Text = text
+    b.BackgroundColor3 = Color3.fromRGB(60,60,80)
+    b.TextColor3 = Color3.fromRGB(240,240,240)
+    b.Parent = quickRow
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+    return b
+end
+
+local sea1Btn = makeQuickBtn("Equip Sword - Sea 1")
+local sea2Btn = makeQuickBtn("Equip Sword - Sea 2")
+local sea3Btn = makeQuickBtn("Equip Sword - Sea 3")
+local refreshBtn = makeQuickBtn("Refresh")
+
+-- Scroll list for swords
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -16, 1, -96)
+scroll.Position = UDim2.new(0,8,0,80)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 6
+scroll.Parent = swordPanel
+local listLayout = Instance.new("UIListLayout", scroll)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0,6)
+local uiPadding = Instance.new("UIPadding", scroll)
+uiPadding.PaddingTop = UDim.new(0,6)
+uiPadding.PaddingLeft = UDim.new(0,6)
+uiPadding.PaddingRight = UDim.new(0,6)
+
+-- Scan function: tìm kiếm tools có "sea1/sea2/sea3" (tách nguồn)
+local function scanSwords()
+    local results = {}
+    local function checkContainer(container, sourceName)
+        if not container then return end
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("Tool") then
+                local lower = obj.Name:lower()
+                if string.find(lower, "sea1") or string.find(lower, "sea 1") or string.find(lower, "sea2") or string.find(lower, "sea 2") or string.find(lower, "sea3") or string.find(lower, "sea 3") then
+                    table.insert(results, {inst = obj, name = obj.Name, source = sourceName})
+                end
+            end
+        end
+    end
+    checkContainer(player.Backpack, "Backpack")
+    checkContainer(player.Character, "Character")
+    checkContainer(ReplicatedStorage, "ReplicatedStorage")
+    checkContainer(workspace, "Workspace")
+    return results
+end
+
+-- Clear previous list UI
+local function clearList()
+    for _, child in ipairs(scroll:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+end
+
+-- Create list item UI
+local function createListItem(entry)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.new(1, 0, 0, 36)
+    f.BackgroundColor3 = Color3.fromRGB(45,45,55)
+    f.Parent = scroll
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0,6)
+
+    local nameLbl = Instance.new("TextLabel", f)
+    nameLbl.Size = UDim2.new(0.66, -8, 1, 0)
+    nameLbl.Position = UDim2.new(0,8,0,0)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Font = Enum.Font.Gotham
+    nameLbl.TextSize = 14
+    nameLbl.TextColor3 = Color3.fromRGB(230,230,230)
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    nameLbl.Text = entry.name.."    ("..entry.source..")"
+
+    local equipBtn = Instance.new("TextButton", f)
+    equipBtn.Size = UDim2.new(0.32, -12, 0.72, 0)
+    equipBtn.Position = UDim2.new(0.68, 8, 0.14, 0)
+    equipBtn.AnchorPoint = Vector2.new(0,0)
+    equipBtn.Font = Enum.Font.GothamSemibold
+    equipBtn.TextSize = 14
+    equipBtn.Text = "Equip"
+    equipBtn.BackgroundColor3 = Color3.fromRGB(75,110,200)
+    equipBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", equipBtn).CornerRadius = UDim.new(0,6)
+
+    equipBtn.MouseButton1Click:Connect(function()
+        local inst = entry.inst
+        if not inst or not inst.Parent then
+            notify(main, "Item không còn tồn tại.")
+            return
+        end
+        if inst.Parent == player.Backpack or inst.Parent == player.Character then
+            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum:EquipTool(inst)
+                notify(main, "Đã cố gắng equip: "..entry.name)
+            else
+                notify(main, "Không tìm thấy Humanoid để equip.")
+            end
+        else
+            notify(main, "Không thể equip trực tiếp từ "..entry.source..". Vui lòng chuyển item vào Backpack/Character trước.")
+        end
+    end)
+end
+
+-- Populate list UI
+local function populateList()
+    clearList()
+    local items = scanSwords()
+    if #items == 0 then
+        local empty = Instance.new("TextLabel", scroll)
+        empty.Size = UDim2.new(1, -12, 0, 28)
+        empty.Position = UDim2.new(0,6,0,6)
+        empty.BackgroundTransparency = 1
+        empty.Text = "Không tìm thấy kiếm Sea1/2/3 trong Backpack/Character/ReplicatedStorage/Workspace."
+        empty.Font = Enum.Font.Gotham
+        empty.TextSize = 14
+        empty.TextColor3 = Color3.fromRGB(200,200,200)
+        return
+    end
+    for _, ent in ipairs(items) do
+        createListItem(ent)
+    end
+end
+
+-- Quick equip helper (search in Backpack/Character for first match)
+local function quickEquip(keyword)
+    local function findToolInContainer(c)
+        if not c then return nil end
+        for _, v in ipairs(c:GetChildren()) do
+            if v:IsA("Tool") and string.find(v.Name:lower(), keyword:lower()) then
+                return v
+            end
+        end
+        return nil
+    end
+    local tool = findToolInContainer(player.Backpack) or findToolInContainer(player.Character)
+    if tool then
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:EquipTool(tool)
+            notify(main, "Đã cố gắng equip: "..tool.Name)
+        else
+            notify(main, "Không tìm thấy Humanoid để equip.")
+        end
+    else
+        notify(main, "Không tìm thấy kiếm có keyword '"..keyword.."' trong Backpack/Character.")
+    end
+end
+
+-- Buttons events
+sea1Btn.MouseButton1Click:Connect(function() quickEquip("sea1") end)
+sea2Btn.MouseButton1Click:Connect(function() quickEquip("sea2") end)
+sea3Btn.MouseButton1Click:Connect(function() quickEquip("sea3") end)
+refreshBtn.MouseButton1Click:Connect(function()
+    populateList()
+    notify(main, "Đã quét lại danh sách kiếm.")
+end)
+
+-- Khởi tạo danh sách lần đầu
+task.delay(0.15, function() populateList() end)
+
+-- (Tùy chọn) thêm một nút "Equip All Found (từng cái, chỉ equip cái cuối cùng là hiệu quả)"
+-- Lưu ý: Roblox chỉ cho equip 1 tool tại 1 thời điểm; hành động này sẽ equip tuần tự từng tool nếu có.
+local equipAllBtn = Instance.new("TextButton", swordPanel)
+equipAllBtn.Size = UDim2.new(0.4, 0, 0, 30)
+equipAllBtn.Position = UDim2.new(0.55, 0, 0, 34)
+equipAllBtn.BackgroundColor3 = Color3.fromRGB(90,90,100)
+equipAllBtn.Font = Enum.Font.GothamSemibold
+equipAllBtn.TextSize = 13
+equipAllBtn.Text = "Equip All (tuần tự)"
+equipAllBtn.TextColor3 = Color3.fromRGB(240,240,240)
+Instance.new("UICorner", equipAllBtn).CornerRadius = UDim.new(0,6)
+equipAllBtn.MouseButton1Click:Connect(function()
+    local items = scanSwords()
+    if #items == 0 then
+        notify(main, "Không có kiếm để equip.")
+        return
+    end
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then
+        notify(main, "Không tìm thấy Humanoid.")
+        return
+    end
+    for _, ent in ipairs(items) do
+        if ent.inst and (ent.inst.Parent == player.Backpack or ent.inst.Parent == player.Character) then
+            hum:EquipTool(ent.inst)
+            task.wait(0.35)
+        end
+    end
+    notify(main, "Đã cố gắng equip tuần tự các kiếm tìm được.")
+end)
+
+-- End of scriptServerInfoLabel.Parent = MainFrame
+
+-- Hiển thị thông tin trái ác quỷ xuất hiện
+local FruitInfoLabel = Instance.new("TextLabel")
+FruitInfoLabel.Size = UDim2.new(1, 0, 0.5, 0)
+FruitInfoLabel.Position = UDim2.new(0, 0, 0.4, 0)
+FruitInfoLabel.Text = "No fruit has spawned yet."
+FruitInfoLabel.TextColor3 = Color3.new(1, 1, 1)
+FruitInfoLabel.TextSize = 16
+FruitInfoLabel.Font = Enum.Font.SourceSans
+FruitInfoLabel.BackgroundTransparency = 1
+FruitInfoLabel.Parent = MainFrame
+
+-- Hàm kiểm tra và cập nhật thông tin trái ác quỷ
+local function checkFruitSpawn()
+    local fruit = game.Workspace:FindFirstChild("RandomFruit")
+    if fruit then
+        FruitInfoLabel.Text = "Fruit spawned: " .. fruit.Name
+        FruitInfoLabel.TextColor3 = Color3.new(0, 1, 0) -- Màu xanh lá khi có trái
+    else
+        FruitInfoLabel.Text = "No fruit has spawned yet."
+        FruitInfoLabel.TextColor3 = Color3.new(1, 1, 1)
+    end
+end
+
+-- Lặp lại kiểm tra mỗi 10 giây
+while wait(10) do
+    checkFruitSpawn()
+end
