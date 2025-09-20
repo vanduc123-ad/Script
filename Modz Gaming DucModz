@@ -51,7 +51,6 @@ AddButton(Tab1o, {
      Name = "Dat ThG V3"
     Callback = function()
     getgenv().Team = “Marines”
-
 loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/DatThg/refs/heads/main/DatThgV3Eng"))()
    end
 }
