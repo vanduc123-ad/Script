@@ -22,7 +22,7 @@ loadstring(game:HttpGet(("https://raw.githubusercontent.com/daucobonhi/Ui-Redz-V
 
        MinimizeButton({
       Image="http://www.roblox.com/asset/?id= 123721329765902",
-       Size = {60, 60},
+       Size = {50, 50},
        Color = Color3.fromRGB(10, 10, 10),
        Corner = true,
        Stroke = false,
@@ -36,7 +36,7 @@ loadstring(game:HttpGet(("https://raw.githubusercontent.com/daucobonhi/Ui-Redz-V
 ------- BUTTON
     
     AddButton(Tab1o, {
-     Name = "Redz Hub Mới Nhất",
+     Name = "Redz Hub M?i Nh?t",
     Callback = function()
 	 local Settings = {
 JoinTeam = "Pirates"; -- Pirates/Marines
@@ -46,15 +46,16 @@ getgenv().BETA_VERSION = true
 loadstring(game:HttpGet("https://raw.githubusercontent.com/tlredz/Scripts/refs/heads/main/main.luau"))(Settings)
   end
   })
+
 AddButton(Tab1o, {
-     Name = "Dat ThG V3"
+     Name = "Dat ThG đang Up",
     Callback = function()
-    getgenv().Team = “Marines”
-loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/DatThg/refs/heads/main/DatThgV3Eng"))()
-   end
-   })
+end
+})
+
+
 AddButton(Tab2o, {
-     Name = "Đang update",
+     Name = "?ang update",
     Callback = function()
   end
   })
