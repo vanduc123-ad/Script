@@ -1,262 +1,243 @@
--- Full UI Template (Safe) + Command-line style Loading
--- Author: @VanDucMCBer (template)
--- NOTE: Safe template — NO remote invokes, NO teleports, NO auto farm.
+-- Ultimate Full GOD (SIMULATION ONLY) - Safe template
+-- Author: @VanDucMCBer (adapted)
+-- NOTE: COMPLETELY SAFE: NO teleport, NO remote invokes, NO auto-farm. Purely client-side simulation + UI.
 
--- Load Orion UI (executor must support HttpGet)
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source", true))()
+-- REQUIRE: executor with HttpGet support
+local ok, OrionLib = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source", true))()
+end)
+if not ok or not OrionLib then
+    error("Failed to load OrionLib. Make sure your executor supports HttpGet and you're online.")
+end
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
--- Create window early so we can show loading info inside it
+-- Utility safe logger (prints + on-screen notifications)
+local function safeLog(title, msg, time)
+    print(("[%s] %s"):format(title, tostring(msg)))
+    OrionLib:MakeNotification({Name = tostring(title), Content = tostring(msg), Time = time or 3})
+end
+
+-- Build UI
 local Window = OrionLib:MakeWindow({
-    Name = "⚡ Ultimate UI Template (Safe) ⚡",
+    Name = "⚡ Ultimate Blox Fruits Menu — SIM (Full GOD Template)",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "UBF_Template"
+    ConfigFolder = "UBF_FullSim"
 })
 
 -- Tabs
-local InfoTab = Window:MakeTab({Name = "Thông tin", Icon = "rbxassetid://4483345998"})
-local TeleTab = Window:MakeTab({Name = "Teleport (Sim)", Icon = "rbxassetid://6035067836"})
-local AutoTab = Window:MakeTab({Name = "Auto (Sim)", Icon = "rbxassetid://6034684949"})
-local BossTab = Window:MakeTab({Name = "Boss (Sim)", Icon = "rbxassetid://6034989559"})
-local RaidTab = Window:MakeTab({Name = "Raid (Sim)", Icon = "rbxassetid://6034767619"})
-local StatsTab = Window:MakeTab({Name = "Stats", Icon = "rbxassetid://6035078894"})
-local ExtraTab = Window:MakeTab({Name = "Extra (Sim)", Icon = "rbxassetid://6034509993"})
+local InfoTab   = Window:MakeTab({Name = "Thông tin", Icon = "rbxassetid://4483345998"})
+local TeleTab   = Window:MakeTab({Name = "Teleport (Sim)", Icon = "rbxassetid://6035067836"})
+local AutoTab   = Window:MakeTab({Name = "Auto (Sim)", Icon = "rbxassetid://6034684949"})
+local BossTab   = Window:MakeTab({Name = "Boss (Sim)", Icon = "rbxassetid://6034989559"})
+local RaidTab   = Window:MakeTab({Name = "Raid (Sim)", Icon = "rbxassetid://6034767619"})
+local StatsTab  = Window:MakeTab({Name = "Stats (Sim)", Icon = "rbxassetid://6035078894"})
+local ExtraTab  = Window:MakeTab({Name = "Extra (Sim)", Icon = "rbxassetid://6034509993"})
+local TradeTab  = Window:MakeTab({Name = "Trade (Sim)", Icon = "rbxassetid://6035050000"})
 
--- Info Paragraphs (will update)
-local pLoading = InfoTab:AddParagraph("⏳ Loading", "Chưa bắt đầu...")
-local pName = InfoTab:AddParagraph("👤 Người chơi", "Đang tải...")
-local pChar = InfoTab:AddParagraph("💎 Nhân vật", "Đang tải...")
-local pPos  = InfoTab:AddParagraph("📍 Vị trí", "Đang tải...")
-local pFruit= InfoTab:AddParagraph("🍏 Fruit (local)", "Chưa biết")
+-- Info displays
+local loadPara = InfoTab:AddParagraph("⏳ Loader", "Pending...")
+local playerPara = InfoTab:AddParagraph("👤 Người chơi", "Không có dữ liệu")
+local statsPara  = InfoTab:AddParagraph("📊 Stats (local)", "—")
+local posPara    = InfoTab:AddParagraph("📍 Vị trí (local)", "—")
+local fruitPara  = InfoTab:AddParagraph("🍏 Fruit (local)", "Chưa biết")
+local logBox     = InfoTab:AddParagraph("📜 Log (recent)", "Sẵn sàng")
 
--- Simple terminal-style logger helper (updates loading paragraph and prints)
-local function setLoading(percent, msg, barWidth)
-    barWidth = barWidth or 24
-    local filled = math.floor((percent/100) * barWidth)
-    if filled < 0 then filled = 0 end
-    if filled > barWidth then filled = barWidth end
-    local bar = string.rep("=", filled) .. string.rep(" ", barWidth - filled)
-    local text = string.format("[%s] %3d%%  %s", bar, percent, msg or "")
-    -- update UI
-    pLoading:Set("⏳ Loading", text)
-    -- also print in output for executor console
-    pcall(function() print("[Loader] "..text) end)
+local function appendLogLine(line)
+    -- keep few last lines
+    local cur = logBox:Get()
+    local text = tostring(line)
+    local combined = cur .. "\n" .. text
+    -- trim to ~8 lines
+    local lines = {}
+    for s in combined:gmatch("[^\n]+") do table.insert(lines, s) end
+    if #lines > 8 then
+        local start = #lines - 7
+        local sliced = {}
+        for i = start, #lines do table.insert(sliced, lines[i]) end
+        combined = table.concat(sliced, "\n")
+    end
+    logBox:Set("📜 Log (recent)", combined)
 end
 
--- Simulated loading steps (array of {percent, message, delay})
-local loadingSteps = {
-    {5,  "Init: Preparing modules...", 0.25},
-    {12, "Init: Loading UI core...", 0.25},
-    {20, "Init: Registering tabs...", 0.20},
-    {30, "Init: Creating controls...", 0.20},
-    {40, "Init: Binding events...", 0.25},
-    {52, "Init: Scanning local player data...", 0.30},
-    {64, "Init: Preparing safe template...", 0.20},
-    {72, "Init: Finalizing Teleport (Sim)...", 0.18},
-    {80, "Init: Finalizing Auto (Sim)...", 0.18},
-    {88, "Init: Finalizing Boss/Raid (Sim)...", 0.18},
-    {94, "Init: Final checks...", 0.20},
-    {100,"Ready! UI initialized.", 0.15}
-}
+-- Simple terminal-like loader bar
+local function setLoader(pct, msg)
+    pct = math.clamp(pct, 0, 100)
+    local width = 24
+    local filled = math.floor(pct/100 * width)
+    local bar = string.rep("=", filled) .. string.rep(" ", width - filled)
+    local text = ("[%s] %3d%%  %s"):format(bar, pct, msg or "")
+    loadPara:Set("⏳ Loader", text)
+    appendLogLine("[Loader] "..text)
+end
 
--- Run simulated loader (non-blocking visual feel)
+-- Simulated sequential loading steps
 task.spawn(function()
-    for _, step in ipairs(loadingSteps) do
-        local pct, msg, delay = step[1], step[2], step[3] or 0.2
-        -- animate small increments up to pct for smooth bar
-        local current = 0
-        -- read current percent from paragraph if possible
-        -- but we'll just increment smoothly
-        current = 0
-        local increment = math.max(1, math.floor((pct - current) / 6))
-        while current < pct do
-            current = math.min(pct, current + increment)
-            setLoading(current, msg)
-            task.wait(delay / 6)
+    local steps = {
+        {10, "Loading core UI..."},
+        {25, "Preparing tabs..."},
+        {40, "Binding safe events..."},
+        {55, "Scanning local player data..."},
+        {70, "Preparing simulators (Quest/Mastery/Boss)..."},
+        {85, "Finalizing Extra features..."},
+        {100, "Ready — Simulation mode active."}
+    }
+    for _, s in ipairs(steps) do
+        for p = (s[1]-6), s[1], 1 do
+            setLoader(math.clamp(p,0,100), s[2])
+            task.wait(0.02)
         end
-        task.wait(delay)
+        setLoader(s[1], s[2])
+        task.wait(0.06)
     end
-
-    -- final beep-like notification
-    OrionLib:MakeNotification({
-        Name = "Ready",
-        Content = "UI Template đã sẵn sàng — bản Safe (mô phỏng).",
-        Time = 4
-    })
+    safeLog("SYSTEM", "Full SIM UI ready", 4)
 end)
 
--- ---------- UI Controls (safe simulation) ----------
-
--- Toggle UI bind
-InfoTab:AddBind({
-    Name = "🔑 Toggle UI",
-    Default = Enum.KeyCode.RightControl,
-    Hold = false,
-    Callback = function() OrionLib:ToggleUI() end
-})
-
--- Teleport (Simulation)
-local teleSelection = "Start Island"
-local teleLocations = {"Start Island","Marine Starter","Middle Town","Desert","Second Sea","Raid Room"}
-TeleTab:AddDropdown({
-    Name = "Chọn địa điểm (Sim)",
-    Default = teleSelection,
-    Options = teleLocations,
-    Callback = function(v) teleSelection = v end
-})
-TeleTab:AddButton({
-    Name = "Simulate Teleport",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Simulate Teleport",
-            Content = "Không thực hiện teleport — chỉ mô phỏng: "..teleSelection,
-            Time = 3
-        })
-        setLoading(50, "Simulate: teleport -> "..teleSelection)
+-- Realtime local info updater (reads client-only safely)
+task.spawn(function()
+    while task.wait(0.8) do
+        if LocalPlayer then
+            local name = LocalPlayer.Name or "Player"
+            local level = "?"
+            pcall(function() if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then level = LocalPlayer.Data.Level.Value end end)
+            playerPara:Set("👤 Người chơi", "Tên: "..tostring(name) .. "\nLevel: "..tostring(level))
+            local hpmax = "?"
+            local pos = "?"
+            pcall(function()
+                if LocalPlayer.Character then
+                    local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
+                    if hum then hpmax = tostring(math.floor(hum.Health)).."/"..tostring(math.floor(hum.MaxHealth)) end
+                    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local p = hrp.Position
+                        pos = ("X:%d Y:%d Z:%d"):format(math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
+                    end
+                end
+            end)
+            statsPara:Set("📊 Stats (local)", "HP: "..hpmax)
+            posPara:Set("📍 Vị trí (local)", pos)
+            local fruit = "Chưa ăn"
+            pcall(function() if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("DevilFruit") then fruit = LocalPlayer.Data.DevilFruit.Value end end)
+            fruitPara:Set("🍏 Fruit (local)", tostring(fruit))
+        end
     end
-})
+end)
 
--- Auto (Simulation) toggles with safe behavior (no remote calls)
-local simAutoQuest = false
-local simAutoMastery = false
-local simAutoHaki = false
+-- ======= TELEPORT (SIM) =======
+local teleLocations = {
+    "Start Island","Marine Starter","Middle Town","Jungle","Desert","Sky Island",
+    "Colosseum","Prison","Ice Island","Second Sea","Third Sea","Raid Room"
+}
+local selTele = teleLocations[1]
+TeleTab:AddDropdown({Name="Chọn địa điểm (Sim)", Default=selTele, Options=teleLocations, Callback=function(v) selTele=v end})
+TeleTab:AddButton({Name="Simulate Teleport", Callback=function()
+    safeLog("TELEPORT-SIM", "Requested simulate teleport -> "..tostring(selTele), 3)
+    setLoader(50, "Simulating teleport: "..tostring(selTele))
+end})
+TeleTab:AddLabel("Lưu ý: Đây là mô phỏng — không thay đổi vị trí bạn trong game.")
 
-AutoTab:AddToggle({
-    Name = "📜 Auto Quest (Sim)",
-    Default = false,
-    Callback = function(v)
-        simAutoQuest = v
-        OrionLib:MakeNotification({Name="Auto Quest (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
-        setLoading(v and 60 or 48, "Auto Quest (Sim) "..(v and "ON" or "OFF"))
+-- ======= AUTO (SIM) =======
+local sim = {
+    AutoQuest=false,
+    AutoMastery=false,
+    AutoHaki=false,
+    AutoChest=false,
+    AutoFruit=false,
+    AutoStore=false,
+    AutoBuyRandom=false,
+    AutoBuySelected=false
+}
+AutoTab:AddToggle({Name="📜 Auto Quest (Sim)", Default=false, Callback=function(v) sim.AutoQuest=v; safeLog("AutoSim","Auto Quest "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="🔥 Auto Mastery (Sim)", Default=false, Callback=function(v) sim.AutoMastery=v; safeLog("AutoSim","Auto Mastery "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="💥 Auto Haki (Sim)", Default=false, Callback=function(v) sim.AutoHaki=v; safeLog("AutoSim","Auto Haki "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) sim.AutoChest=v; safeLog("AutoSim","Auto Chest "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="🍏 Auto Collect Fruit (Sim)", Default=false, Callback=function(v) sim.AutoFruit=v; safeLog("AutoSim","Auto Fruit "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) sim.AutoStore=v; safeLog("AutoSim","Auto Store "..(v and "ON" or "OFF")) end})
+AutoTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) sim.AutoBuyRandom=v; safeLog("AutoSim","Auto Buy Random "..(v and "ON" or "OFF")) end})
+
+local buyOptions = {"Flame","Ice","Dark","Magma","Quake","Rumble","String"}
+local selBuy = buyOptions[1]
+AutoTab:AddDropdown({Name="Chọn Fruit để Auto Buy (Sim)", Default=selBuy, Options=buyOptions, Callback=function(v) selBuy=v end})
+AutoTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) sim.AutoBuySelected=v; safeLog("AutoSim","Auto Buy Selected "..(v and "ON" or "OFF").." -> "..tostring(selBuy)) end})
+
+-- background "simulator" that only logs; it DOES NOT perform game changes
+task.spawn(function()
+    while task.wait(1.5) do
+        if sim.AutoQuest then appendLogLine("[Sim] AutoQuest tick — scanning quests (sim)") end
+        if sim.AutoMastery then appendLogLine("[Sim] AutoMastery tick — training (sim)") end
+        if sim.AutoHaki then appendLogLine("[Sim] AutoHaki tick — ensure Buso (sim)") end
+        if sim.AutoChest then appendLogLine("[Sim] AutoChest tick — scanning chests (sim)") end
+        if sim.AutoFruit then appendLogLine("[Sim] AutoFruit tick — scanning fruits (sim)") end
+        if sim.AutoStore then appendLogLine("[Sim] AutoStore tick — storing to vault (sim)") end
+        if sim.AutoBuyRandom then appendLogLine("[Sim] AutoBuyRand tick — requesting random buy (sim)") end
+        if sim.AutoBuySelected then appendLogLine("[Sim] AutoBuySel tick — attempting buy "..tostring(selBuy).." (sim)") end
     end
-})
-AutoTab:AddToggle({
-    Name = "🔥 Auto Mastery (Sim)",
-    Default = false,
-    Callback = function(v)
-        simAutoMastery = v
-        OrionLib:MakeNotification({Name="Auto Mastery (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
-        setLoading(v and 66 or 52, "Auto Mastery (Sim) "..(v and "ON" or "OFF"))
-    end
-})
-AutoTab:AddToggle({
-    Name = "💥 Auto Haki (Sim)",
-    Default = false,
-    Callback = function(v)
-        simAutoHaki = v
-        OrionLib:MakeNotification({Name="Auto Haki (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
-        setLoading(v and 70 or 54, "Auto Haki (Sim) "..(v and "ON" or "OFF"))
-    end
-})
+end)
 
--- Boss Tab (Simulation)
-local bossChoice = "Saber Expert"
-local bossList = {"Saber Expert","Ice Admiral","Magma Admiral","Don Swan","Cursed Captain"}
-BossTab:AddDropdown({
-    Name = "Chọn Boss (Sim)",
-    Default = bossChoice,
-    Options = bossList,
-    Callback = function(v) bossChoice = v end
-})
-BossTab:AddButton({
-    Name = "Simulate Farm Boss",
-    Callback = function()
-        OrionLib:MakeNotification({Name="Boss (Sim)", Content="Mô phỏng farm: "..bossChoice, Time=3})
-        setLoading(82, "Simulate: boss -> "..bossChoice)
-    end
-})
-
--- Raid (Simulation)
-local raidFruit = "Flame"
-RaidTab:AddDropdown({
-    Name = "Chọn Raid Fruit (Sim)",
-    Default = raidFruit,
-    Options = {"Flame","Ice","Dark","Light","Rumble","Quake","Magma","String"},
-    Callback = function(v) raidFruit = v end
-})
-RaidTab:AddButton({
-    Name = "Simulate Start Raid",
-    Callback = function()
-        OrionLib:MakeNotification({Name="Raid (Sim)", Content="Mô phỏng vào Raid và train: "..raidFruit, Time=3})
-        setLoading(92, "Simulate: raid -> "..raidFruit)
-    end
-})
-
--- Stats Tab (safe auto-add simulation)
-local chosenStat = "Melee"
-StatsTab:AddDropdown({
-    Name = "Chọn stat (Sim)",
-    Default = chosenStat,
-    Options = {"Melee","Defense","Sword","Gun","Demon Fruit"},
-    Callback = function(v) chosenStat = v end
-})
-StatsTab:AddSlider({
-    Name = "Số point mỗi lần (Sim)",
-    Min = 1, Max = 10, Default = 1, Increment = 1,
-    Callback = function(v) end
-})
-StatsTab:AddButton({
-    Name = "Simulate Add Point",
-    Callback = function()
-        OrionLib:MakeNotification({Name="Stats (Sim)", Content="Mô phỏng add point cho: "..chosenStat, Time=2})
-        setLoading(96, "Simulate: addpoint -> "..chosenStat)
-    end
-})
-
--- Extra Tab (Chest/Fruit/Store/Buy) - simulation only
-local simChest=false
-local simFruit=false
-local simStore=false
-local simBuyRandom=false
-local simBuySelected=false
-local selectedBuy = "Flame"
-
-ExtraTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) simChest=v; setLoading(v and 46 or 40, "Sim: AutoChest "..(v and "ON" or "OFF")) end})
-ExtraTab:AddToggle({Name="🍏 Auto Fruit (Sim)", Default=false, Callback=function(v) simFruit=v; setLoading(v and 46 or 40, "Sim: AutoFruit "..(v and "ON" or "OFF")) end})
-ExtraTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) simStore=v; setLoading(v and 48 or 42, "Sim: AutoStore "..(v and "ON" or "OFF")) end})
-ExtraTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) simBuyRandom=v; setLoading(v and 60 or 44, "Sim: AutoBuyRand "..(v and "ON" or "OFF")) end})
-ExtraTab:AddDropdown({Name="Chọn Fruit để mua (Sim)", Default=selectedBuy, Options={"Flame","Ice","Dark","Magma","Quake"}, Callback=function(v) selectedBuy=v end})
-ExtraTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) simBuySelected=v; setLoading(v and 64 or 46, "Sim: AutoBuySel "..(v and "ON" or "OFF")) end})
-ExtraTab:AddButton({Name="Simulate Extra Action", Callback=function()
-    OrionLib:MakeNotification({
-        Name="Extra (Sim)",
-        Content="Chest:"..tostring(simChest)..", Fruit:"..tostring(simFruit)..", Store:"..tostring(simStore)..", BuyRand:"..tostring(simBuyRandom)..", BuySel:"..tostring(simBuySelected).."("..selectedBuy..")",
-        Time=4
-    })
-    setLoading(98, "Sim: extra action")
+-- ======= BOSS (SIM) =======
+local bossList = {"Saber Expert","Ice Admiral","Magma Admiral","Don Swan","Cursed Captain","Stone","Smoke Admiral","Flamingo"}
+local selBoss = bossList[1]
+BossTab:AddDropdown({Name="Chọn Boss (Sim)", Default=selBoss, Options=bossList, Callback=function(v) selBoss=v end})
+BossTab:AddButton({Name="Simulate Farm Boss", Callback=function()
+    safeLog("BOSS-SIM", "Simulate start farming boss: "..tostring(selBoss), 4)
+    setLoader(80, "Simulating boss farm: "..tostring(selBoss))
 end})
 
--- Realtime info updater (safe: only reads local client properties)
-task.spawn(function()
-    while task.wait(1) do
-        if LocalPlayer and LocalPlayer.Character and LocalPlayer:FindFirstChild("Data") then
-            local name = LocalPlayer.Name or "Player"
-            local lvl = pcall(function() return LocalPlayer.Data.Level.Value end) and LocalPlayer.Data.Level.Value or "?"
-            pName:Set("👤 Người chơi", "Tên: "..name.."\nLevel: "..tostring(lvl))
+-- ======= RAID / AWAKEN (SIM) =======
+local raidFruits = {"Flame","Ice","Dark","Light","Rumble","Quake","Magma","String"}
+local selRaidFruit = raidFruits[1]
+RaidTab:AddDropdown({Name="Chọn Raid Fruit (Sim)", Default=selRaidFruit, Options=raidFruits, Callback=function(v) selRaidFruit=v end})
+RaidTab:AddButton({Name="Simulate Start Raid", Callback=function()
+    safeLog("RAID-SIM", "Simulate raid for: "..tostring(selRaidFruit), 4)
+    setLoader(92, "Simulating raid: "..tostring(selRaidFruit))
+end})
+RaidTab:AddButton({Name="Simulate Awaken", Callback=function()
+    safeLog("RAID-SIM", "Simulate awaken sequence (sim)", 3)
+    setLoader(98, "Simulating awaken...")
+end})
 
-            local hp = "?"
-            local pos = "?"
-            if LocalPlayer.Character:FindFirstChild("Humanoid") then
-                pcall(function()
-                    hp = math.floor(LocalPlayer.Character.Humanoid.Health) .. " / " .. math.floor(LocalPlayer.Character.Humanoid.MaxHealth)
-                end)
-            end
-            if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local p = LocalPlayer.Character.HumanoidRootPart.Position
-                pos = "X:"..math.floor(p.X).." Y:"..math.floor(p.Y).." Z:"..math.floor(p.Z)
-            end
-            pChar:Set("💎 Nhân vật", "HP: "..hp)
-            pPos:Set("📍 Vị trí", pos)
+-- ======= STATS (SIM) =======
+local statOptions = {"Melee","Defense","Sword","Gun","Demon Fruit"}
+local selStat = statOptions[1]
+StatsTab:AddDropdown({Name="Chọn Stat (Sim)", Default=selStat, Options=statOptions, Callback=function(v) selStat=v end})
+StatsTab:AddSlider({Name="Số điểm mỗi lần (Sim)", Min=1, Max=10, Default=1, Increment=1, Callback=function(v) appendLogLine("[Sim] Chosen add points: "..tostring(v)) end})
+StatsTab:AddButton({Name="Simulate Add Points", Callback=function()
+    safeLog("STATS-SIM", "Simulate add points to "..tostring(selStat), 3)
+end})
 
-            local fruit = pcall(function() return LocalPlayer.Data.DevilFruit.Value end) and LocalPlayer.Data.DevilFruit.Value or "Chưa ăn"
-            pFruit:Set("🍏 Fruit (local)", tostring(fruit))
-        end
-    end
-end)
+-- ======= EXTRA (SIM) =======
+local extraFlags = {Chest=false, Fruit=false, Store=false, BuyRand=false, BuySel=false}
+ExtraTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) extraFlags.Chest=v; safeLog("EXTRA","AutoChest (sim): "..tostring(v)) end})
+ExtraTab:AddToggle({Name="🍏 Auto Collect Fruit (Sim)", Default=false, Callback=function(v) extraFlags.Fruit=v; safeLog("EXTRA","AutoFruit (sim): "..tostring(v)) end})
+ExtraTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) extraFlags.Store=v; safeLog("EXTRA","AutoStore (sim): "..tostring(v)) end})
+ExtraTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) extraFlags.BuyRand=v; safeLog("EXTRA","AutoBuyRandom (sim): "..tostring(v)) end})
+ExtraTab:AddDropdown({Name="Chọn Fruit (Sim)", Default=buyOptions[1], Options=buyOptions, Callback=function(v) selBuy=v end})
+ExtraTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) extraFlags.BuySel=v; safeLog("EXTRA","AutoBuySelected (sim): "..tostring(v).." -> "..tostring(selBuy)) end})
+ExtraTab:AddButton({Name="Simulate Extra Action", Callback=function()
+    safeLog("EXTRA", ("Sim Flags — Chest:%s Fruit:%s Store:%s BuyRand:%s BuySel:%s(%s)")
+        :format(tostring(extraFlags.Chest), tostring(extraFlags.Fruit), tostring(extraFlags.Store),
+                tostring(extraFlags.BuyRand), tostring(extraFlags.BuySel), tostring(selBuy)), 4)
+end})
+
+-- ======= TRADE (SIM) =======
+local tradeTarget = ""
+TradeTab:AddTextbox({Name="Target Player (Sim)", Text="", Placeholder="PlayerName", Callback=function(v) tradeTarget=v end})
+TradeTab:AddButton({Name="Simulate Trade Offer", Callback=function()
+    if tradeTarget == "" then safeLog("TRADE-SIM","Please enter a target player name (sim).",3) return end
+    safeLog("TRADE-SIM","Simulate sending trade offer to: "..tostring(tradeTarget),4)
+end})
+TradeTab:AddButton({Name="Simulate Accept Trade", Callback=function() safeLog("TRADE-SIM","Simulate accepting trade (sim)",3) end})
+
+-- ======= UI Bind =======
+InfoTab:AddBind({Name="🔑 Toggle UI", Default=Enum.KeyCode.RightControl, Hold=false, Callback=function() OrionLib:ToggleUI() end})
 
 -- Finalize UI
 OrionLib:Init()
+safeLog("SYSTEM", "Ultimate Full GOD (SIM) loaded. All actions are simulated only.", 5)
 
--- End of script
+-- Helpful tip print
+print("=== Ultimate Full GOD (SIM) loaded ===")
+print("This template is SAFE: it will NOT change the game state. Use it to test UI and logic.")
