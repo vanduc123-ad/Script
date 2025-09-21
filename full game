@@ -1,0 +1,262 @@
+-- Full UI Template (Safe) + Command-line style Loading
+-- Author: @VanDucMCBer (template)
+-- NOTE: Safe template — NO remote invokes, NO teleports, NO auto farm.
+
+-- Load Orion UI (executor must support HttpGet)
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source", true))()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Create window early so we can show loading info inside it
+local Window = OrionLib:MakeWindow({
+    Name = "⚡ Ultimate UI Template (Safe) ⚡",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "UBF_Template"
+})
+
+-- Tabs
+local InfoTab = Window:MakeTab({Name = "Thông tin", Icon = "rbxassetid://4483345998"})
+local TeleTab = Window:MakeTab({Name = "Teleport (Sim)", Icon = "rbxassetid://6035067836"})
+local AutoTab = Window:MakeTab({Name = "Auto (Sim)", Icon = "rbxassetid://6034684949"})
+local BossTab = Window:MakeTab({Name = "Boss (Sim)", Icon = "rbxassetid://6034989559"})
+local RaidTab = Window:MakeTab({Name = "Raid (Sim)", Icon = "rbxassetid://6034767619"})
+local StatsTab = Window:MakeTab({Name = "Stats", Icon = "rbxassetid://6035078894"})
+local ExtraTab = Window:MakeTab({Name = "Extra (Sim)", Icon = "rbxassetid://6034509993"})
+
+-- Info Paragraphs (will update)
+local pLoading = InfoTab:AddParagraph("⏳ Loading", "Chưa bắt đầu...")
+local pName = InfoTab:AddParagraph("👤 Người chơi", "Đang tải...")
+local pChar = InfoTab:AddParagraph("💎 Nhân vật", "Đang tải...")
+local pPos  = InfoTab:AddParagraph("📍 Vị trí", "Đang tải...")
+local pFruit= InfoTab:AddParagraph("🍏 Fruit (local)", "Chưa biết")
+
+-- Simple terminal-style logger helper (updates loading paragraph and prints)
+local function setLoading(percent, msg, barWidth)
+    barWidth = barWidth or 24
+    local filled = math.floor((percent/100) * barWidth)
+    if filled < 0 then filled = 0 end
+    if filled > barWidth then filled = barWidth end
+    local bar = string.rep("=", filled) .. string.rep(" ", barWidth - filled)
+    local text = string.format("[%s] %3d%%  %s", bar, percent, msg or "")
+    -- update UI
+    pLoading:Set("⏳ Loading", text)
+    -- also print in output for executor console
+    pcall(function() print("[Loader] "..text) end)
+end
+
+-- Simulated loading steps (array of {percent, message, delay})
+local loadingSteps = {
+    {5,  "Init: Preparing modules...", 0.25},
+    {12, "Init: Loading UI core...", 0.25},
+    {20, "Init: Registering tabs...", 0.20},
+    {30, "Init: Creating controls...", 0.20},
+    {40, "Init: Binding events...", 0.25},
+    {52, "Init: Scanning local player data...", 0.30},
+    {64, "Init: Preparing safe template...", 0.20},
+    {72, "Init: Finalizing Teleport (Sim)...", 0.18},
+    {80, "Init: Finalizing Auto (Sim)...", 0.18},
+    {88, "Init: Finalizing Boss/Raid (Sim)...", 0.18},
+    {94, "Init: Final checks...", 0.20},
+    {100,"Ready! UI initialized.", 0.15}
+}
+
+-- Run simulated loader (non-blocking visual feel)
+task.spawn(function()
+    for _, step in ipairs(loadingSteps) do
+        local pct, msg, delay = step[1], step[2], step[3] or 0.2
+        -- animate small increments up to pct for smooth bar
+        local current = 0
+        -- read current percent from paragraph if possible
+        -- but we'll just increment smoothly
+        current = 0
+        local increment = math.max(1, math.floor((pct - current) / 6))
+        while current < pct do
+            current = math.min(pct, current + increment)
+            setLoading(current, msg)
+            task.wait(delay / 6)
+        end
+        task.wait(delay)
+    end
+
+    -- final beep-like notification
+    OrionLib:MakeNotification({
+        Name = "Ready",
+        Content = "UI Template đã sẵn sàng — bản Safe (mô phỏng).",
+        Time = 4
+    })
+end)
+
+-- ---------- UI Controls (safe simulation) ----------
+
+-- Toggle UI bind
+InfoTab:AddBind({
+    Name = "🔑 Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Callback = function() OrionLib:ToggleUI() end
+})
+
+-- Teleport (Simulation)
+local teleSelection = "Start Island"
+local teleLocations = {"Start Island","Marine Starter","Middle Town","Desert","Second Sea","Raid Room"}
+TeleTab:AddDropdown({
+    Name = "Chọn địa điểm (Sim)",
+    Default = teleSelection,
+    Options = teleLocations,
+    Callback = function(v) teleSelection = v end
+})
+TeleTab:AddButton({
+    Name = "Simulate Teleport",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Simulate Teleport",
+            Content = "Không thực hiện teleport — chỉ mô phỏng: "..teleSelection,
+            Time = 3
+        })
+        setLoading(50, "Simulate: teleport -> "..teleSelection)
+    end
+})
+
+-- Auto (Simulation) toggles with safe behavior (no remote calls)
+local simAutoQuest = false
+local simAutoMastery = false
+local simAutoHaki = false
+
+AutoTab:AddToggle({
+    Name = "📜 Auto Quest (Sim)",
+    Default = false,
+    Callback = function(v)
+        simAutoQuest = v
+        OrionLib:MakeNotification({Name="Auto Quest (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
+        setLoading(v and 60 or 48, "Auto Quest (Sim) "..(v and "ON" or "OFF"))
+    end
+})
+AutoTab:AddToggle({
+    Name = "🔥 Auto Mastery (Sim)",
+    Default = false,
+    Callback = function(v)
+        simAutoMastery = v
+        OrionLib:MakeNotification({Name="Auto Mastery (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
+        setLoading(v and 66 or 52, "Auto Mastery (Sim) "..(v and "ON" or "OFF"))
+    end
+})
+AutoTab:AddToggle({
+    Name = "💥 Auto Haki (Sim)",
+    Default = false,
+    Callback = function(v)
+        simAutoHaki = v
+        OrionLib:MakeNotification({Name="Auto Haki (Sim)", Content = v and "Bật (chỉ mô phỏng)" or "Tắt", Time=2})
+        setLoading(v and 70 or 54, "Auto Haki (Sim) "..(v and "ON" or "OFF"))
+    end
+})
+
+-- Boss Tab (Simulation)
+local bossChoice = "Saber Expert"
+local bossList = {"Saber Expert","Ice Admiral","Magma Admiral","Don Swan","Cursed Captain"}
+BossTab:AddDropdown({
+    Name = "Chọn Boss (Sim)",
+    Default = bossChoice,
+    Options = bossList,
+    Callback = function(v) bossChoice = v end
+})
+BossTab:AddButton({
+    Name = "Simulate Farm Boss",
+    Callback = function()
+        OrionLib:MakeNotification({Name="Boss (Sim)", Content="Mô phỏng farm: "..bossChoice, Time=3})
+        setLoading(82, "Simulate: boss -> "..bossChoice)
+    end
+})
+
+-- Raid (Simulation)
+local raidFruit = "Flame"
+RaidTab:AddDropdown({
+    Name = "Chọn Raid Fruit (Sim)",
+    Default = raidFruit,
+    Options = {"Flame","Ice","Dark","Light","Rumble","Quake","Magma","String"},
+    Callback = function(v) raidFruit = v end
+})
+RaidTab:AddButton({
+    Name = "Simulate Start Raid",
+    Callback = function()
+        OrionLib:MakeNotification({Name="Raid (Sim)", Content="Mô phỏng vào Raid và train: "..raidFruit, Time=3})
+        setLoading(92, "Simulate: raid -> "..raidFruit)
+    end
+})
+
+-- Stats Tab (safe auto-add simulation)
+local chosenStat = "Melee"
+StatsTab:AddDropdown({
+    Name = "Chọn stat (Sim)",
+    Default = chosenStat,
+    Options = {"Melee","Defense","Sword","Gun","Demon Fruit"},
+    Callback = function(v) chosenStat = v end
+})
+StatsTab:AddSlider({
+    Name = "Số point mỗi lần (Sim)",
+    Min = 1, Max = 10, Default = 1, Increment = 1,
+    Callback = function(v) end
+})
+StatsTab:AddButton({
+    Name = "Simulate Add Point",
+    Callback = function()
+        OrionLib:MakeNotification({Name="Stats (Sim)", Content="Mô phỏng add point cho: "..chosenStat, Time=2})
+        setLoading(96, "Simulate: addpoint -> "..chosenStat)
+    end
+})
+
+-- Extra Tab (Chest/Fruit/Store/Buy) - simulation only
+local simChest=false
+local simFruit=false
+local simStore=false
+local simBuyRandom=false
+local simBuySelected=false
+local selectedBuy = "Flame"
+
+ExtraTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) simChest=v; setLoading(v and 46 or 40, "Sim: AutoChest "..(v and "ON" or "OFF")) end})
+ExtraTab:AddToggle({Name="🍏 Auto Fruit (Sim)", Default=false, Callback=function(v) simFruit=v; setLoading(v and 46 or 40, "Sim: AutoFruit "..(v and "ON" or "OFF")) end})
+ExtraTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) simStore=v; setLoading(v and 48 or 42, "Sim: AutoStore "..(v and "ON" or "OFF")) end})
+ExtraTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) simBuyRandom=v; setLoading(v and 60 or 44, "Sim: AutoBuyRand "..(v and "ON" or "OFF")) end})
+ExtraTab:AddDropdown({Name="Chọn Fruit để mua (Sim)", Default=selectedBuy, Options={"Flame","Ice","Dark","Magma","Quake"}, Callback=function(v) selectedBuy=v end})
+ExtraTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) simBuySelected=v; setLoading(v and 64 or 46, "Sim: AutoBuySel "..(v and "ON" or "OFF")) end})
+ExtraTab:AddButton({Name="Simulate Extra Action", Callback=function()
+    OrionLib:MakeNotification({
+        Name="Extra (Sim)",
+        Content="Chest:"..tostring(simChest)..", Fruit:"..tostring(simFruit)..", Store:"..tostring(simStore)..", BuyRand:"..tostring(simBuyRandom)..", BuySel:"..tostring(simBuySelected).."("..selectedBuy..")",
+        Time=4
+    })
+    setLoading(98, "Sim: extra action")
+end})
+
+-- Realtime info updater (safe: only reads local client properties)
+task.spawn(function()
+    while task.wait(1) do
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer:FindFirstChild("Data") then
+            local name = LocalPlayer.Name or "Player"
+            local lvl = pcall(function() return LocalPlayer.Data.Level.Value end) and LocalPlayer.Data.Level.Value or "?"
+            pName:Set("👤 Người chơi", "Tên: "..name.."\nLevel: "..tostring(lvl))
+
+            local hp = "?"
+            local pos = "?"
+            if LocalPlayer.Character:FindFirstChild("Humanoid") then
+                pcall(function()
+                    hp = math.floor(LocalPlayer.Character.Humanoid.Health) .. " / " .. math.floor(LocalPlayer.Character.Humanoid.MaxHealth)
+                end)
+            end
+            if LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local p = LocalPlayer.Character.HumanoidRootPart.Position
+                pos = "X:"..math.floor(p.X).." Y:"..math.floor(p.Y).." Z:"..math.floor(p.Z)
+            end
+            pChar:Set("💎 Nhân vật", "HP: "..hp)
+            pPos:Set("📍 Vị trí", pos)
+
+            local fruit = pcall(function() return LocalPlayer.Data.DevilFruit.Value end) and LocalPlayer.Data.DevilFruit.Value or "Chưa ăn"
+            pFruit:Set("🍏 Fruit (local)", tostring(fruit))
+        end
+    end
+end)
+
+-- Finalize UI
+OrionLib:Init()
+
+-- End of script
