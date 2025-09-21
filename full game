@@ -1,243 +1,206 @@
--- Ultimate Full GOD (SIMULATION ONLY) - Safe template
--- Author: @VanDucMCBer (adapted)
--- NOTE: COMPLETELY SAFE: NO teleport, NO remote invokes, NO auto-farm. Purely client-side simulation + UI.
-
--- REQUIRE: executor with HttpGet support
-local ok, OrionLib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source", true))()
-end)
-if not ok or not OrionLib then
-    error("Failed to load OrionLib. Make sure your executor supports HttpGet and you're online.")
-end
-
+-- ServerInfo LocalScript
+-- Đặt script này trong StarterGui -> ScreenGui
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- Utility safe logger (prints + on-screen notifications)
-local function safeLog(title, msg, time)
-    print(("[%s] %s"):format(title, tostring(msg)))
-    OrionLib:MakeNotification({Name = tostring(title), Content = tostring(msg), Time = time or 3})
+local player = Players.LocalPlayer
+local gui = script.Parent -- giả định script nằm trực tiếp dưới ScreenGui
+if not gui:IsA("ScreenGui") then
+    warn("LocalScript nên nằm trực tiếp trong ScreenGui")
 end
 
--- Build UI
-local Window = OrionLib:MakeWindow({
-    Name = "⚡ Ultimate Blox Fruits Menu — SIM (Full GOD Template)",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "UBF_FullSim"
-})
-
--- Tabs
-local InfoTab   = Window:MakeTab({Name = "Thông tin", Icon = "rbxassetid://4483345998"})
-local TeleTab   = Window:MakeTab({Name = "Teleport (Sim)", Icon = "rbxassetid://6035067836"})
-local AutoTab   = Window:MakeTab({Name = "Auto (Sim)", Icon = "rbxassetid://6034684949"})
-local BossTab   = Window:MakeTab({Name = "Boss (Sim)", Icon = "rbxassetid://6034989559"})
-local RaidTab   = Window:MakeTab({Name = "Raid (Sim)", Icon = "rbxassetid://6034767619"})
-local StatsTab  = Window:MakeTab({Name = "Stats (Sim)", Icon = "rbxassetid://6035078894"})
-local ExtraTab  = Window:MakeTab({Name = "Extra (Sim)", Icon = "rbxassetid://6034509993"})
-local TradeTab  = Window:MakeTab({Name = "Trade (Sim)", Icon = "rbxassetid://6035050000"})
-
--- Info displays
-local loadPara = InfoTab:AddParagraph("⏳ Loader", "Pending...")
-local playerPara = InfoTab:AddParagraph("👤 Người chơi", "Không có dữ liệu")
-local statsPara  = InfoTab:AddParagraph("📊 Stats (local)", "—")
-local posPara    = InfoTab:AddParagraph("📍 Vị trí (local)", "—")
-local fruitPara  = InfoTab:AddParagraph("🍏 Fruit (local)", "Chưa biết")
-local logBox     = InfoTab:AddParagraph("📜 Log (recent)", "Sẵn sàng")
-
-local function appendLogLine(line)
-    -- keep few last lines
-    local cur = logBox:Get()
-    local text = tostring(line)
-    local combined = cur .. "\n" .. text
-    -- trim to ~8 lines
-    local lines = {}
-    for s in combined:gmatch("[^\n]+") do table.insert(lines, s) end
-    if #lines > 8 then
-        local start = #lines - 7
-        local sliced = {}
-        for i = start, #lines do table.insert(sliced, lines[i]) end
-        combined = table.concat(sliced, "\n")
-    end
-    logBox:Set("📜 Log (recent)", combined)
-end
-
--- Simple terminal-like loader bar
-local function setLoader(pct, msg)
-    pct = math.clamp(pct, 0, 100)
-    local width = 24
-    local filled = math.floor(pct/100 * width)
-    local bar = string.rep("=", filled) .. string.rep(" ", width - filled)
-    local text = ("[%s] %3d%%  %s"):format(bar, pct, msg or "")
-    loadPara:Set("⏳ Loader", text)
-    appendLogLine("[Loader] "..text)
-end
-
--- Simulated sequential loading steps
-task.spawn(function()
-    local steps = {
-        {10, "Loading core UI..."},
-        {25, "Preparing tabs..."},
-        {40, "Binding safe events..."},
-        {55, "Scanning local player data..."},
-        {70, "Preparing simulators (Quest/Mastery/Boss)..."},
-        {85, "Finalizing Extra features..."},
-        {100, "Ready — Simulation mode active."}
-    }
-    for _, s in ipairs(steps) do
-        for p = (s[1]-6), s[1], 1 do
-            setLoader(math.clamp(p,0,100), s[2])
-            task.wait(0.02)
-        end
-        setLoader(s[1], s[2])
-        task.wait(0.06)
-    end
-    safeLog("SYSTEM", "Full SIM UI ready", 4)
-end)
-
--- Realtime local info updater (reads client-only safely)
-task.spawn(function()
-    while task.wait(0.8) do
-        if LocalPlayer then
-            local name = LocalPlayer.Name or "Player"
-            local level = "?"
-            pcall(function() if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level") then level = LocalPlayer.Data.Level.Value end end)
-            playerPara:Set("👤 Người chơi", "Tên: "..tostring(name) .. "\nLevel: "..tostring(level))
-            local hpmax = "?"
-            local pos = "?"
-            pcall(function()
-                if LocalPlayer.Character then
-                    local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-                    if hum then hpmax = tostring(math.floor(hum.Health)).."/"..tostring(math.floor(hum.MaxHealth)) end
-                    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local p = hrp.Position
-                        pos = ("X:%d Y:%d Z:%d"):format(math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
-                    end
-                end
-            end)
-            statsPara:Set("📊 Stats (local)", "HP: "..hpmax)
-            posPara:Set("📍 Vị trí (local)", pos)
-            local fruit = "Chưa ăn"
-            pcall(function() if LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("DevilFruit") then fruit = LocalPlayer.Data.DevilFruit.Value end end)
-            fruitPara:Set("🍏 Fruit (local)", tostring(fruit))
-        end
-    end
-end)
-
--- ======= TELEPORT (SIM) =======
-local teleLocations = {
-    "Start Island","Marine Starter","Middle Town","Jungle","Desert","Sky Island",
-    "Colosseum","Prison","Ice Island","Second Sea","Third Sea","Raid Room"
+-- ====== CẤU HÌNH: chỉnh vùng đảo ở đây ======
+-- islandRegions: bảng gồm {name = "Tên đảo", min = Vector3, max = Vector3}
+-- Các vùng đơn giản theo AABB (axis-aligned bounding box). Chỉnh lại theo map server của bạn.
+local islandRegions = {
+    { name = "Đảo Trung Tâm", min = Vector3.new(-200, -100, -200), max = Vector3.new(200, 500, 200) },
+    { name = "Đảo Bắc",      min = Vector3.new(-800, -100, -200), max = Vector3.new(-201, 500, 200) },
+    { name = "Đảo Nam",      min = Vector3.new(201, -100, -200),  max = Vector3.new(800, 500, 200) },
+    -- Thêm đảo khác ở đây...
 }
-local selTele = teleLocations[1]
-TeleTab:AddDropdown({Name="Chọn địa điểm (Sim)", Default=selTele, Options=teleLocations, Callback=function(v) selTele=v end})
-TeleTab:AddButton({Name="Simulate Teleport", Callback=function()
-    safeLog("TELEPORT-SIM", "Requested simulate teleport -> "..tostring(selTele), 3)
-    setLoader(50, "Simulating teleport: "..tostring(selTele))
-end})
-TeleTab:AddLabel("Lưu ý: Đây là mô phỏng — không thay đổi vị trí bạn trong game.")
+-- ===========================================
 
--- ======= AUTO (SIM) =======
-local sim = {
-    AutoQuest=false,
-    AutoMastery=false,
-    AutoHaki=false,
-    AutoChest=false,
-    AutoFruit=false,
-    AutoStore=false,
-    AutoBuyRandom=false,
-    AutoBuySelected=false
-}
-AutoTab:AddToggle({Name="📜 Auto Quest (Sim)", Default=false, Callback=function(v) sim.AutoQuest=v; safeLog("AutoSim","Auto Quest "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="🔥 Auto Mastery (Sim)", Default=false, Callback=function(v) sim.AutoMastery=v; safeLog("AutoSim","Auto Mastery "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="💥 Auto Haki (Sim)", Default=false, Callback=function(v) sim.AutoHaki=v; safeLog("AutoSim","Auto Haki "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) sim.AutoChest=v; safeLog("AutoSim","Auto Chest "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="🍏 Auto Collect Fruit (Sim)", Default=false, Callback=function(v) sim.AutoFruit=v; safeLog("AutoSim","Auto Fruit "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) sim.AutoStore=v; safeLog("AutoSim","Auto Store "..(v and "ON" or "OFF")) end})
-AutoTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) sim.AutoBuyRandom=v; safeLog("AutoSim","Auto Buy Random "..(v and "ON" or "OFF")) end})
+-- ====== Tạo UI nếu bạn chưa có các phần tử ======
+-- Nếu bạn đã tạo UI trong Studio, bạn có thể bỏ phần tạo tự động và dùng UI đó.
+local function makeUI()
+    -- ScreenGui đã có (script.Parent)
+    -- Tạo frame menu
+    local frame = Instance.new("Frame")
+    frame.Name = "ServerInfoFrame"
+    frame.Size = UDim2.new(0, 250, 0, 120)
+    frame.Position = UDim2.new(0, 12, 0, 12)
+    frame.AnchorPoint = Vector2.new(0,0)
+    frame.BackgroundTransparency = 0.07
+    frame.BackgroundColor3 = Color3.fromRGB(20,20,25)
+    frame.BorderSizePixel = 0
+    frame.Parent = gui
 
-local buyOptions = {"Flame","Ice","Dark","Magma","Quake","Rumble","String"}
-local selBuy = buyOptions[1]
-AutoTab:AddDropdown({Name="Chọn Fruit để Auto Buy (Sim)", Default=selBuy, Options=buyOptions, Callback=function(v) selBuy=v end})
-AutoTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) sim.AutoBuySelected=v; safeLog("AutoSim","Auto Buy Selected "..(v and "ON" or "OFF").." -> "..tostring(selBuy)) end})
+    -- Header (tên)
+    local header = Instance.new("TextLabel")
+    header.Name = "Header"
+    header.Size = UDim2.new(1, -44, 0, 36)
+    header.Position = UDim2.new(0, 8, 0, 8)
+    header.BackgroundTransparency = 1
+    header.Font = Enum.Font.GothamBold
+    header.TextSize = 18
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.TextYAlignment = Enum.TextYAlignment.Center
+    header.TextColor3 = Color3.fromRGB(230,230,230)
+    header.Text = "Server Info"
+    header.Parent = frame
 
--- background "simulator" that only logs; it DOES NOT perform game changes
-task.spawn(function()
-    while task.wait(1.5) do
-        if sim.AutoQuest then appendLogLine("[Sim] AutoQuest tick — scanning quests (sim)") end
-        if sim.AutoMastery then appendLogLine("[Sim] AutoMastery tick — training (sim)") end
-        if sim.AutoHaki then appendLogLine("[Sim] AutoHaki tick — ensure Buso (sim)") end
-        if sim.AutoChest then appendLogLine("[Sim] AutoChest tick — scanning chests (sim)") end
-        if sim.AutoFruit then appendLogLine("[Sim] AutoFruit tick — scanning fruits (sim)") end
-        if sim.AutoStore then appendLogLine("[Sim] AutoStore tick — storing to vault (sim)") end
-        if sim.AutoBuyRandom then appendLogLine("[Sim] AutoBuyRand tick — requesting random buy (sim)") end
-        if sim.AutoBuySelected then appendLogLine("[Sim] AutoBuySel tick — attempting buy "..tostring(selBuy).." (sim)") end
+    -- Toggle button
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Name = "Toggle"
+    toggleBtn.Size = UDim2.new(0, 28, 0, 28)
+    toggleBtn.Position = UDim2.new(1, -36, 0, 8)
+    toggleBtn.AnchorPoint = Vector2.new(0,0)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,50)
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Font = Enum.Font.GothamSemibold
+    toggleBtn.TextSize = 18
+    toggleBtn.Text = "≡"
+    toggleBtn.TextColor3 = Color3.fromRGB(230,230,230)
+    toggleBtn.Parent = frame
+
+    -- Info labels container
+    local infoContainer = Instance.new("Frame")
+    infoContainer.Name = "Info"
+    infoContainer.Size = UDim2.new(1, -16, 0, 68)
+    infoContainer.Position = UDim2.new(0, 8, 0, 44)
+    infoContainer.BackgroundTransparency = 1
+    infoContainer.Parent = frame
+
+    local label1 = Instance.new("TextLabel")
+    label1.Name = "PlayerName"
+    label1.Size = UDim2.new(1, 0, 0, 20)
+    label1.Position = UDim2.new(0, 0, 0, 0)
+    label1.BackgroundTransparency = 1
+    label1.Font = Enum.Font.Gotham
+    label1.TextSize = 14
+    label1.TextXAlignment = Enum.TextXAlignment.Left
+    label1.TextColor3 = Color3.fromRGB(220,220,220)
+    label1.Text = "Name: -"
+    label1.Parent = infoContainer
+
+    local label2 = Instance.new("TextLabel")
+    label2.Name = "UserId"
+    label2.Size = UDim2.new(1, 0, 0, 20)
+    label2.Position = UDim2.new(0, 0, 0, 22)
+    label2.BackgroundTransparency = 1
+    label2.Font = Enum.Font.Gotham
+    label2.TextSize = 14
+    label2.TextXAlignment = Enum.TextXAlignment.Left
+    label2.TextColor3 = Color3.fromRGB(220,220,220)
+    label2.Text = "UserId: -"
+    label2.Parent = infoContainer
+
+    local label3 = Instance.new("TextLabel")
+    label3.Name = "Island"
+    label3.Size = UDim2.new(1, 0, 0, 20)
+    label3.Position = UDim2.new(0, 0, 0, 44)
+    label3.BackgroundTransparency = 1
+    label3.Font = Enum.Font.Gotham
+    label3.TextSize = 14
+    label3.TextXAlignment = Enum.TextXAlignment.Left
+    label3.TextColor3 = Color3.fromRGB(220,220,220)
+    label3.Text = "Island: -"
+    label3.Parent = infoContainer
+
+    -- Khởi trạng thái ẩn nhẹ (thu nhỏ)
+    frame.AnchorPoint = Vector2.new(0, 0)
+    return frame, toggleBtn, label1, label2, label3
+end
+
+-- Nếu bạn đã tự thêm phần tử UI vào ScreenGui trong Studio, bỏ qua makeUI
+local frame, toggleBtn, nameLabel, idLabel, islandLabel
+if gui:FindFirstChild("ServerInfoFrame") then
+    frame = gui.ServerInfoFrame
+    toggleBtn = frame:FindFirstChild("Toggle")
+    nameLabel = frame:FindFirstChild("Info") and frame.Info:FindFirstChild("PlayerName")
+    idLabel = frame:FindFirstChild("Info") and frame.Info:FindFirstChild("UserId")
+    islandLabel = frame:FindFirstChild("Info") and frame.Info:FindFirstChild("Island")
+else
+    frame, toggleBtn, nameLabel, idLabel, islandLabel = makeUI()
+end
+
+-- ====== Tween settings cho mở/đóng mượt ======
+local openPos = frame.Position
+local closedPos = UDim2.new(openPos.X.Scale, openPos.X.Offset - (frame.Size.X.Offset - 36), openPos.Y.Scale, openPos.Y.Offset) -- kéo sang trái chỉ còn nút
+local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local isOpen = true
+
+local openTween = TweenService:Create(frame, tweenInfo, {Position = openPos})
+local closeTween = TweenService:Create(frame, tweenInfo, {Position = closedPos})
+
+-- Toggle function
+local function toggle()
+    if isOpen then
+        closeTween:Play()
+    else
+        openTween:Play()
+    end
+    isOpen = not isOpen
+end
+
+toggleBtn.MouseButton1Click:Connect(toggle)
+
+-- ====== Hàm xác định đảo dựa trên vị trí ======
+local function getIslandFromPosition(pos)
+    for _, region in ipairs(islandRegions) do
+        local minb = region.min
+        local maxb = region.max
+        if pos.X >= minb.X and pos.X <= maxb.X
+        and pos.Y >= minb.Y and pos.Y <= maxb.Y
+        and pos.Z >= minb.Z and pos.Z <= maxb.Z then
+            return region.name
+        end
+    end
+    return "Không xác định"
+end
+
+-- ====== Cập nhật thông tin hiển thị ======
+local function updateInfo()
+    if not player then return end
+    nameLabel.Text = "Name: " .. tostring(player.Name or "-")
+    idLabel.Text = "UserId: " .. tostring(player.UserId or "-")
+
+    local char = player.Character
+    local hrp = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+    if hrp and hrp:IsA("BasePart") then
+        local island = getIslandFromPosition(hrp.Position)
+        islandLabel.Text = "Island: " .. island
+    else
+        islandLabel.Text = "Island: -"
+    end
+end
+
+-- Cập nhật định kỳ mượt (nửa giây); bạn có thể điều chỉnh
+local updateInterval = 0.5
+spawn(function()
+    while true do
+        local start = tick()
+        updateInfo()
+        local elapsed = tick() - start
+        local waitTime = updateInterval - elapsed
+        if waitTime > 0 then
+            wait(waitTime)
+        else
+            -- nếu bị trễ thì tiếp liền
+            RunService.Heartbeat:Wait()
+        end
     end
 end)
 
--- ======= BOSS (SIM) =======
-local bossList = {"Saber Expert","Ice Admiral","Magma Admiral","Don Swan","Cursed Captain","Stone","Smoke Admiral","Flamingo"}
-local selBoss = bossList[1]
-BossTab:AddDropdown({Name="Chọn Boss (Sim)", Default=selBoss, Options=bossList, Callback=function(v) selBoss=v end})
-BossTab:AddButton({Name="Simulate Farm Boss", Callback=function()
-    safeLog("BOSS-SIM", "Simulate start farming boss: "..tostring(selBoss), 4)
-    setLoader(80, "Simulating boss farm: "..tostring(selBoss))
-end})
+-- Cập nhật khi respawn / character add
+player.CharacterAdded:Connect(function()
+    wait(0.2) -- đợi HRP spawn
+    updateInfo()
+end)
 
--- ======= RAID / AWAKEN (SIM) =======
-local raidFruits = {"Flame","Ice","Dark","Light","Rumble","Quake","Magma","String"}
-local selRaidFruit = raidFruits[1]
-RaidTab:AddDropdown({Name="Chọn Raid Fruit (Sim)", Default=selRaidFruit, Options=raidFruits, Callback=function(v) selRaidFruit=v end})
-RaidTab:AddButton({Name="Simulate Start Raid", Callback=function()
-    safeLog("RAID-SIM", "Simulate raid for: "..tostring(selRaidFruit), 4)
-    setLoader(92, "Simulating raid: "..tostring(selRaidFruit))
-end})
-RaidTab:AddButton({Name="Simulate Awaken", Callback=function()
-    safeLog("RAID-SIM", "Simulate awaken sequence (sim)", 3)
-    setLoader(98, "Simulating awaken...")
-end})
+-- Khởi tạo trạng thái ban đầu: ẩn/hiện theo isOpen (mặc định true)
+frame.Position = openPos
 
--- ======= STATS (SIM) =======
-local statOptions = {"Melee","Defense","Sword","Gun","Demon Fruit"}
-local selStat = statOptions[1]
-StatsTab:AddDropdown({Name="Chọn Stat (Sim)", Default=selStat, Options=statOptions, Callback=function(v) selStat=v end})
-StatsTab:AddSlider({Name="Số điểm mỗi lần (Sim)", Min=1, Max=10, Default=1, Increment=1, Callback=function(v) appendLogLine("[Sim] Chosen add points: "..tostring(v)) end})
-StatsTab:AddButton({Name="Simulate Add Points", Callback=function()
-    safeLog("STATS-SIM", "Simulate add points to "..tostring(selStat), 3)
-end})
-
--- ======= EXTRA (SIM) =======
-local extraFlags = {Chest=false, Fruit=false, Store=false, BuyRand=false, BuySel=false}
-ExtraTab:AddToggle({Name="💰 Auto Chest (Sim)", Default=false, Callback=function(v) extraFlags.Chest=v; safeLog("EXTRA","AutoChest (sim): "..tostring(v)) end})
-ExtraTab:AddToggle({Name="🍏 Auto Collect Fruit (Sim)", Default=false, Callback=function(v) extraFlags.Fruit=v; safeLog("EXTRA","AutoFruit (sim): "..tostring(v)) end})
-ExtraTab:AddToggle({Name="📦 Auto Store Fruit (Sim)", Default=false, Callback=function(v) extraFlags.Store=v; safeLog("EXTRA","AutoStore (sim): "..tostring(v)) end})
-ExtraTab:AddToggle({Name="🎲 Auto Buy Random (Sim)", Default=false, Callback=function(v) extraFlags.BuyRand=v; safeLog("EXTRA","AutoBuyRandom (sim): "..tostring(v)) end})
-ExtraTab:AddDropdown({Name="Chọn Fruit (Sim)", Default=buyOptions[1], Options=buyOptions, Callback=function(v) selBuy=v end})
-ExtraTab:AddToggle({Name="🛒 Auto Buy Selected (Sim)", Default=false, Callback=function(v) extraFlags.BuySel=v; safeLog("EXTRA","AutoBuySelected (sim): "..tostring(v).." -> "..tostring(selBuy)) end})
-ExtraTab:AddButton({Name="Simulate Extra Action", Callback=function()
-    safeLog("EXTRA", ("Sim Flags — Chest:%s Fruit:%s Store:%s BuyRand:%s BuySel:%s(%s)")
-        :format(tostring(extraFlags.Chest), tostring(extraFlags.Fruit), tostring(extraFlags.Store),
-                tostring(extraFlags.BuyRand), tostring(extraFlags.BuySel), tostring(selBuy)), 4)
-end})
-
--- ======= TRADE (SIM) =======
-local tradeTarget = ""
-TradeTab:AddTextbox({Name="Target Player (Sim)", Text="", Placeholder="PlayerName", Callback=function(v) tradeTarget=v end})
-TradeTab:AddButton({Name="Simulate Trade Offer", Callback=function()
-    if tradeTarget == "" then safeLog("TRADE-SIM","Please enter a target player name (sim).",3) return end
-    safeLog("TRADE-SIM","Simulate sending trade offer to: "..tostring(tradeTarget),4)
-end})
-TradeTab:AddButton({Name="Simulate Accept Trade", Callback=function() safeLog("TRADE-SIM","Simulate accepting trade (sim)",3) end})
-
--- ======= UI Bind =======
-InfoTab:AddBind({Name="🔑 Toggle UI", Default=Enum.KeyCode.RightControl, Hold=false, Callback=function() OrionLib:ToggleUI() end})
-
--- Finalize UI
-OrionLib:Init()
-safeLog("SYSTEM", "Ultimate Full GOD (SIM) loaded. All actions are simulated only.", 5)
-
--- Helpful tip print
-print("=== Ultimate Full GOD (SIM) loaded ===")
-print("This template is SAFE: it will NOT change the game state. Use it to test UI and logic.")
+-- Ghi chú: có thể mở rộng hiển thị thêm ping, server tick, team, vị trí toạ độ, v.v.
+-- Lưu ý: chỉnh islandRegions cho khớp toạ độ thực tế server của bạn.
