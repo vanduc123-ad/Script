@@ -1,0 +1,274 @@
+-- Gui Modz Gaming
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+
+-- ScreenGui
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "ModzUI"
+ScreenGui.ResetOnSpawn = false
+
+-- Nút tròn toggle
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Position = UDim2.new(0, 20, 0.5, -30)
+ToggleButton.Image = "rbxassetid://123721329765902" -- ID nút
+ToggleButton.BackgroundTransparency = 1
+ToggleButton.Draggable = true
+ToggleButton.Active = true
+ToggleButton.Selectable = true
+ToggleButton.Parent = ScreenGui
+
+-- Container chính của Menu
+local MenuContainer = Instance.new("Frame")
+MenuContainer.Size = UDim2.new(0, 400, 0, 300)
+MenuContainer.Position = UDim2.new(0.5, -200, 0.5, -150)
+MenuContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MenuContainer.Visible = false
+MenuContainer.ClipsDescendants = true
+MenuContainer.Parent = ScreenGui
+local corner = Instance.new("UICorner", MenuContainer)
+corner.CornerRadius = UDim.new(0, 12)
+
+-- Tiêu đề menu
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "🎮 Modz Gaming"
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 24
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Parent = MenuContainer
+
+-- Tabs holder
+local TabButtons = Instance.new("Frame")
+TabButtons.Size = UDim2.new(0, 100, 1, -40)
+TabButtons.Position = UDim2.new(0, 0, 0, 40)
+TabButtons.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TabButtons.Parent = MenuContainer
+
+local TabContent = Instance.new("Frame")
+TabContent.Size = UDim2.new(1, -100, 1, -40)
+TabContent.Position = UDim2.new(0, 100, 0, 40)
+TabContent.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TabContent.Parent = MenuContainer
+
+-- Hàm tạo Tab
+local function CreateTab(name)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, 0, 0, 40)
+    Button.Text = name
+    Button.Font = Enum.Font.SourceSansBold
+    Button.TextSize = 18
+    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Parent = TabButtons
+
+    local Content = Instance.new("Frame")
+    Content.Size = UDim2.new(1, 0, 1, 0)
+    Content.BackgroundTransparency = 1
+    Content.Visible = false
+    Content.Parent = TabContent
+
+    Button.MouseButton1Click:Connect(function()
+        for _,v in pairs(TabContent:GetChildren()) do
+            if v:IsA("Frame") then v.Visible = false end
+        end
+        Content.Visible = true
+    end)
+
+    return Content
+end
+
+-- Tabs
+local SeverTab = CreateTab("Sever")
+local VitriTab = CreateTab("Vị trí")
+local SettingTab = CreateTab("Cài Đặt")
+local HotTab = CreateTab("📰 Hot")
+
+-- Nội dung Tab Sever
+local SeverInfo = Instance.new("TextLabel", SeverTab)
+SeverInfo.Size = UDim2.new(1, 0, 0, 50)
+SeverInfo.Text = "📡 Server ID: " .. game.JobId
+SeverInfo.TextColor3 = Color3.fromRGB(255,255,255)
+SeverInfo.BackgroundTransparency = 1
+SeverInfo.TextSize = 18
+
+-- Nội dung Tab Vị trí
+local IslandLabel = Instance.new("TextLabel", VitriTab)
+IslandLabel.Size = UDim2.new(1, 0, 0, 50)
+IslandLabel.Text = "⛵ Đang đứng tại: Loading..."
+IslandLabel.TextColor3 = Color3.fromRGB(255,255,255)
+IslandLabel.BackgroundTransparency = 1
+IslandLabel.TextSize = 18
+
+-- Mapping tọa độ -> đảo (ví dụ)
+local islands = {
+    {name = "Starter Island", pos = Vector3.new(0,0,0), radius = 300},
+    {name = "Marine Base", pos = Vector3.new(1000,0,500), radius = 400},
+    {name = "Pirate Island", pos = Vector3.new(-800,0,1200), radius = 400},
+}
+game:GetService("RunService").RenderStepped:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        local found = "Không rõ"
+        for _,island in ipairs(islands) do
+            if (pos - island.pos).Magnitude <= island.radius then
+                found = island.name
+                break
+            end
+        end
+        IslandLabel.Text = "⛵ Đang đứng tại: " .. found
+    end
+end)
+
+-- Nội dung Tab Cài Đặt
+local SettingLabel = Instance.new("TextLabel", SettingTab)
+SettingLabel.Size = UDim2.new(1, 0, 0, 50)
+SettingLabel.Text = "⚙️ Khu vực Cài đặt (sẽ thêm sau)"
+SettingLabel.TextColor3 = Color3.fromRGB(255,255,255)
+SettingLabel.BackgroundTransparency = 1
+SettingLabel.TextSize = 18
+
+-- Nội dung Tab Hot (tin tức)
+local HotScroll = Instance.new("ScrollingFrame", HotTab)
+HotScroll.Size = UDim2.new(1, -10, 1, -10)
+HotScroll.Position = UDim2.new(0,5,0,5)
+HotScroll.CanvasSize = UDim2.new(0,0,0,0)
+HotScroll.BackgroundTransparency = 1
+HotScroll.ScrollBarThickness = 6
+
+-- Popup xem ảnh
+local Popup = Instance.new("Frame", MenuContainer)
+Popup.Size = UDim2.new(1, 0, 1, 0)
+Popup.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Popup.BackgroundTransparency = 0.4
+Popup.Visible = false
+Popup.ZIndex = 10
+Popup.ClipsDescendants = true
+
+local BigImage = Instance.new("ImageLabel", Popup)
+BigImage.Size = UDim2.new(0.6, 0, 0.6, 0)
+BigImage.Position = UDim2.new(0.2, 0, 0.2, 0)
+BigImage.BackgroundTransparency = 1
+BigImage.ScaleType = Enum.ScaleType.Fit
+BigImage.ZIndex = 11
+
+local closeBtn = Instance.new("TextButton", Popup)
+closeBtn.Size = UDim2.new(0, 40, 0, 40)
+closeBtn.Position = UDim2.new(1, -50, 0, 10)
+closeBtn.Text = "✖"
+closeBtn.TextSize = 20
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+closeBtn.ZIndex = 11
+local closeCorner = Instance.new("UICorner", closeBtn)
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeBtn.MouseButton1Click:Connect(function() Popup.Visible = false end)
+
+-- Hàm tải tin tức (demo)
+local function UpdateHotNews()
+    local demo = {
+        {
+            title="⚡ Sự kiện Double XP cuối tuần",
+            date="23/09/2025",
+            content="Trong 2 ngày cuối tuần này, toàn server sẽ nhận được XP gấp đôi!",
+            image="https://i.ibb.co/4j0Z8F4/doublexp.png"
+        },
+        {
+            title="🎉 Update Third Sea",
+            date="20/09/2025",
+            content="Boss mới đã xuất hiện tại Third Sea, kèm theo nhiều item hiếm.",
+            image="https://i.ibb.co/ZJ5jG2X/thirdsea.png"
+        }
+    }
+
+    local yOffset = 0
+    for _, news in ipairs(demo) do
+        local NewsBlock = Instance.new("Frame", HotScroll)
+        NewsBlock.Size = UDim2.new(1, -10, 0, 150)
+        NewsBlock.Position = UDim2.new(0, 5, 0, yOffset)
+        NewsBlock.BackgroundTransparency = 1
+
+        if news.image and news.image ~= "" then
+            local Thumb = Instance.new("ImageLabel", NewsBlock)
+            Thumb.Size = UDim2.new(0, 80, 0, 80)
+            Thumb.Position = UDim2.new(0, 5, 0, 5)
+            Thumb.Image = news.image
+            Thumb.BackgroundTransparency = 1
+            Thumb.ScaleType = Enum.ScaleType.Fit
+            local corner = Instance.new("UICorner", Thumb)
+            corner.CornerRadius = UDim.new(0, 8)
+
+            Thumb.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    BigImage.Image = news.image
+                    Popup.Visible = true
+                end
+            end)
+        end
+
+        local Title = Instance.new("TextLabel", NewsBlock)
+        Title.Size = UDim2.new(1, -100, 0, 25)
+        Title.Position = UDim2.new(0, 95, 0, 5)
+        Title.Text = news.title
+        Title.BackgroundTransparency = 1
+        Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+        Title.Font = Enum.Font.SourceSansBold
+        Title.TextSize = 18
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local Date = Instance.new("TextLabel", NewsBlock)
+        Date.Size = UDim2.new(1, -100, 0, 20)
+        Date.Position = UDim2.new(0, 95, 0, 30)
+        Date.Text = "📅 " .. news.date
+        Date.BackgroundTransparency = 1
+        Date.TextColor3 = Color3.fromRGB(180, 180, 180)
+        Date.Font = Enum.Font.SourceSansItalic
+        Date.TextSize = 14
+        Date.TextXAlignment = Enum.TextXAlignment.Left
+
+        local Content = Instance.new("TextLabel", NewsBlock)
+        Content.Size = UDim2.new(1, -100, 0, 60)
+        Content.Position = UDim2.new(0, 95, 0, 55)
+        Content.Text = news.content
+        Content.TextWrapped = true
+        Content.TextYAlignment = Enum.TextYAlignment.Top
+        Content.TextXAlignment = Enum.TextXAlignment.Left
+        Content.BackgroundTransparency = 1
+        Content.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Content.Font = Enum.Font.SourceSans
+        Content.TextSize = 16
+
+        yOffset = yOffset + 160
+    end
+    HotScroll.CanvasSize = UDim2.new(0,0,0,yOffset)
+end
+UpdateHotNews()
+
+-- Toggle menu
+local menuOpen = false
+local function ToggleMenu()
+    if menuOpen then
+        menuOpen = false
+        TweenService:Create(MenuContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0)
+        }):Play()
+        task.delay(0.4, function()
+            if not menuOpen then MenuContainer.Visible = false end
+        end)
+    else
+        menuOpen = true
+        MenuContainer.Visible = true
+        MenuContainer.Size = UDim2.new(0, 0, 0, 0)
+        MenuContainer.Position = UDim2.new(0.5, 0, 0.5, 0)
+        TweenService:Create(MenuContainer, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 400, 0, 300),
+            Position = UDim2.new(0.5, -200, 0.5, -150)
+        }):Play()
+    end
+end
+ToggleButton.MouseButton1Click:Connect(ToggleMenu)
