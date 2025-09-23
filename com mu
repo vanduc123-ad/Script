@@ -1,0 +1,262 @@
+-- ✅ Full Menu Blox Fruits GUI by VanDucModz
+-- Đã fix toggle, tab, UI không bị che, có thể kéo, full 6 tab
+
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local Player = Players.LocalPlayer
+
+--// GUI
+local ScreenGui = Instance.new("ScreenGui", CoreGui)
+ScreenGui.ResetOnSpawn = false
+
+-- Toggle Button
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = ScreenGui
+ToggleButton.Size = UDim2.new(0,40,0,40)
+ToggleButton.Position = UDim2.new(0,10,0.5,-20)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+ToggleButton.Text = "≡"
+ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 22
+ToggleButton.BorderSizePixel = 0
+ToggleButton.AutoButtonColor = true
+ToggleButton.ZIndex = 10
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0,500,0,350)
+MainFrame.Position = UDim2.new(0.5,-250,0.5,-175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+MainFrame.Visible = true
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ZIndex = 5
+
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0,12)
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(255,215,0)
+
+-- Header
+local Header = Instance.new("TextLabel", MainFrame)
+Header.Size = UDim2.new(1,0,0,40)
+Header.BackgroundTransparency = 1
+Header.Text = "⚡ Modz Gaming Menu ⚡"
+Header.TextColor3 = Color3.fromRGB(255,215,0)
+Header.Font = Enum.Font.GothamBold
+Header.TextSize = 20
+
+-- Tabs
+local TabFrame = Instance.new("Frame", MainFrame)
+TabFrame.Size = UDim2.new(0,120,1,-40)
+TabFrame.Position = UDim2.new(0,0,0,40)
+TabFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+
+local ContentFrame = Instance.new("Frame", MainFrame)
+ContentFrame.Size = UDim2.new(1,-120,1,-40)
+ContentFrame.Position = UDim2.new(0,120,0,40)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+
+local TabButtons = {}
+local TabContents = {}
+
+local function createTab(name, icon)
+    local Btn = Instance.new("TextButton", TabFrame)
+    Btn.Size = UDim2.new(1,0,0,40)
+    Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    Btn.Text = icon.." "..name
+    Btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Btn.Font = Enum.Font.Gotham
+    Btn.TextSize = 14
+    Btn.BorderSizePixel = 0
+    Btn.AutoButtonColor = true
+
+    local Content = Instance.new("ScrollingFrame", ContentFrame)
+    Content.Size = UDim2.new(1,0,1,0)
+    Content.Visible = false
+    Content.CanvasSize = UDim2.new(0,0,0,0)
+    Content.ScrollBarThickness = 6
+    Content.BackgroundTransparency = 1
+
+    table.insert(TabButtons, Btn)
+    table.insert(TabContents, Content)
+
+    Btn.MouseButton1Click:Connect(function()
+        for i,v in ipairs(TabContents) do
+            v.Visible = false
+        end
+        for i,v in ipairs(TabButtons) do
+            v.BackgroundColor3 = Color3.fromRGB(30,30,30)
+        end
+        Content.Visible = true
+        Btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    end)
+
+    return Content
+end
+
+-- Tab 1: Thông tin Sever
+local InfoContent = createTab("Thông tin Sever","📊")
+local InfoLabel = Instance.new("TextLabel", InfoContent)
+InfoLabel.Size = UDim2.new(1,-10,0,200)
+InfoLabel.Position = UDim2.new(0,5,0,5)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.TextColor3 = Color3.fromRGB(255,255,255)
+InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+InfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+InfoLabel.TextSize = 16
+InfoLabel.Font = Enum.Font.Code
+InfoLabel.Text = "Đang tải..."
+
+-- Update Info
+spawn(function()
+    while wait(1) do
+        local fps = math.floor(1/RunService.RenderStepped:Wait())
+        local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
+        InfoLabel.Text = string.format(
+            "👤 Player: %s\n🏝️ Level: %s\n💰 Bounty: %s\n👹 Race: %s\n🔥 Devil Fruit: %s\n\n📊 FPS: %d\n🌐 Ping: %s",
+            Player.Name,
+            Player.Data and Player.Data.Level.Value or "?",
+            Player.leaderstats and Player.leaderstats.Bounty.Value or "?",
+            Player.Data and Player.Data.Race.Value or "?",
+            Player.Data and Player.Data.DevilFruit.Value or "None",
+            fps,
+            ping
+        )
+    end
+end)
+
+-- Tab 2: Map
+local MapContent = createTab("Map","🗺️")
+local MapLabel = Instance.new("TextLabel", MapContent)
+MapLabel.Size = UDim2.new(1,-10,0,100)
+MapLabel.Position = UDim2.new(0,5,0,5)
+MapLabel.BackgroundTransparency = 1
+MapLabel.TextColor3 = Color3.fromRGB(255,255,255)
+MapLabel.TextXAlignment = Enum.TextXAlignment.Left
+MapLabel.TextYAlignment = Enum.TextYAlignment.Top
+MapLabel.TextSize = 16
+MapLabel.Font = Enum.Font.Code
+MapLabel.Text = "Đang xác định vị trí..."
+
+-- Fake map detector (demo)
+local Islands = {
+    {"Starter Island",Vector3.new(100,0,100)},
+    {"Jungle",Vector3.new(500,0,200)},
+    {"Marine",Vector3.new(-200,0,300)},
+}
+spawn(function()
+    while wait(2) do
+        local pos = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
+        local currentIsland = "Không rõ"
+        for _,data in pairs(Islands) do
+            if (pos - data[2]).magnitude < 400 then
+                currentIsland = data[1]
+            end
+        end
+        MapLabel.Text = string.format("📍 Vị trí hiện tại: %s\nX: %.0f, Y: %.0f, Z: %.0f",currentIsland,pos.X,pos.Y,pos.Z)
+    end
+end)
+
+-- Tab 3: Cài Đặt
+local SettingContent = createTab("Cài Đặt","⚙️")
+local DarkModeBtn = Instance.new("TextButton", SettingContent)
+DarkModeBtn.Size = UDim2.new(0,200,0,30)
+DarkModeBtn.Position = UDim2.new(0,10,0,10)
+DarkModeBtn.Text = "🌙 Bật/Tắt Dark Mode"
+DarkModeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+DarkModeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+DarkModeBtn.MouseButton1Click:Connect(function()
+    if MainFrame.BackgroundColor3 == Color3.fromRGB(20,20,20) then
+        MainFrame.BackgroundColor3 = Color3.fromRGB(245,245,245)
+        ContentFrame.BackgroundColor3 = Color3.fromRGB(220,220,220)
+        TabFrame.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    else
+        MainFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+        ContentFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+        TabFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    end
+end)
+
+-- Tab 4: Sự kiện Hot
+local EventContent = createTab("Sự kiện Hot","📰")
+local EventLabel = Instance.new("TextLabel", EventContent)
+EventLabel.Size = UDim2.new(1,-10,0,200)
+EventLabel.Position = UDim2.new(0,5,0,5)
+EventLabel.BackgroundTransparency = 1
+EventLabel.TextColor3 = Color3.fromRGB(255,255,255)
+EventLabel.TextXAlignment = Enum.TextXAlignment.Left
+EventLabel.TextYAlignment = Enum.TextYAlignment.Top
+EventLabel.TextSize = 16
+EventLabel.Font = Enum.Font.Code
+EventLabel.Text = "Đang tải sự kiện..."
+
+spawn(function()
+    while wait(60) do
+        EventLabel.Text = "🎉 Sự kiện hot:\n- 2x EXP (23/09)\n- Giftcode mới (24/09)\n- Raid Boss Global (25/09)"
+    end
+end)
+
+-- Tab 5: Boss
+local BossContent = createTab("Boss","😈")
+local BossLabel = Instance.new("TextLabel", BossContent)
+BossLabel.Size = UDim2.new(1,-10,0,200)
+BossLabel.Position = UDim2.new(0,5,0,5)
+BossLabel.BackgroundTransparency = 1
+BossLabel.TextColor3 = Color3.fromRGB(255,255,255)
+BossLabel.TextXAlignment = Enum.TextXAlignment.Left
+BossLabel.TextYAlignment = Enum.TextYAlignment.Top
+BossLabel.TextSize = 16
+BossLabel.Font = Enum.Font.Code
+BossLabel.Text = "Đang quét boss..."
+
+local BossList = {"Bandit Boss","Buggy","Swan","Magma Admiral"}
+spawn(function()
+    while wait(5) do
+        local text = "😈 Danh sách Boss:\n"
+        for _,boss in pairs(BossList) do
+            local alive = math.random(0,1) == 1 -- giả lập
+            local icon = alive and "🟢" or "🔴"
+            text = text..icon.." "..boss.."\n"
+        end
+        BossLabel.Text = text
+    end
+end)
+
+-- Tab 6: Teleport
+local TPContent = createTab("Teleport","🌀")
+local TPBtn = Instance.new("TextButton", TPContent)
+TPBtn.Size = UDim2.new(0,200,0,30)
+TPBtn.Position = UDim2.new(0,10,0,10)
+TPBtn.Text = "TP tới Jungle"
+TPBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+TPBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+TPBtn.MouseButton1Click:Connect(function()
+    local HRP = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if HRP then
+        HRP.CFrame = CFrame.new(500,10,200)
+    end
+end)
+
+-- Chọn tab đầu mặc định
+TabButtons[1].BackgroundColor3 = Color3.fromRGB(60,60,60)
+TabContents[1].Visible = true
+
+-- Toggle menu
+local visible = true
+ToggleButton.MouseButton1Click:Connect(function()
+    visible = not visible
+    TweenService:Create(MainFrame,TweenInfo.new(0.3),{Size = visible and UDim2.new(0,500,0,350) or UDim2.new(0,0,0,350)}):Play()
+    wait(0.3)
+    MainFrame.Visible = visible
+end)
