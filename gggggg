@@ -1,0 +1,810 @@
+-- ModzBloxFruitsUI v2 (KRNL) - Full + Teleport Tab
+-- Paste entire script into KRNL and run.
+-- WARNING: Teleport modifies HumanoidRootPart.CFrame; anti-cheat may kick you. Use responsibly.
+
+-- ===== Services =====
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local SoundService = game:GetService("SoundService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ===== Config =====
+local CONF = {
+    WIDTH = 820,
+    HEIGHT = 520,
+    ACCENT = Color3.fromRGB(45,155,255),
+    BG = Color3.fromRGB(18,18,20),
+    CARD = Color3.fromRGB(28,28,30),
+    TEXT = Color3.fromRGB(235,235,240),
+    MUTED = Color3.fromRGB(150,150,160),
+    FONT = Enum.Font.GothamSemibold,
+    EVENT_REFRESH = 60,
+    BOSS_REFRESH = 10,
+    MAP_UPDATE = 0.8,
+    BLUR_SIZE = 6,
+    TWEEN = 0.22,
+    TP_OFFSET = Vector3.new(0, 8, 0), -- safe vertical offset when teleporting
+}
+
+-- helper create
+local function new(class, props)
+    local obj = Instance.new(class)
+    if props then
+        for k,v in pairs(props) do
+            if k == "Parent" then obj.Parent = v else pcall(function() obj[k] = v end) end
+        end
+    end
+    return obj
+end
+local function contrastColor(c)
+    local l = 0.2126*c.R + 0.7152*c.G + 0.0722*c.B
+    return (l < 0.5) and Color3.new(1,1,1) or Color3.fromRGB(18,18,18)
+end
+
+-- cleanup
+pcall(function()
+    local old = game.CoreGui:FindFirstChild("ModzBloxFruitsUI_v2")
+    if old then old:Destroy() end
+end)
+
+-- ===== Root GUI + Blur =====
+local screenGui = new("ScreenGui", {Parent = game.CoreGui, Name = "ModzBloxFruitsUI_v2", ResetOnSpawn = false})
+screenGui.IgnoreGuiInset = true
+
+local blur
+pcall(function()
+    blur = Lighting:FindFirstChild("ModzBFBlurV2")
+    if not blur then
+        blur = Instance.new("BlurEffect")
+        blur.Name = "ModzBFBlurV2"
+        blur.Parent = Lighting
+        blur.Size = 0
+        blur.Enabled = false
+    end
+end)
+
+-- ===== Toggle Button (draggable) =====
+local toggle = new("ImageButton", {
+    Parent = screenGui, Name = "ModzToggle", Size = UDim2.new(0,92,0,92),
+    Position = UDim2.new(0.5, -CONF.WIDTH/2 - 120, 0.06, 0), BackgroundColor3 = CONF.ACCENT, AutoButtonColor = false, ZIndex = 999
+})
+new("UICorner", {Parent = toggle, CornerRadius = UDim.new(1,0)})
+toggle.Image = ""
+toggle.Active = true
+toggle.Draggable = true
+local tlabel = new("TextLabel", {Parent = toggle, Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, Text = "MG", Font = CONF.FONT, TextSize = 24, TextColor3 = contrastColor(CONF.ACCENT)})
+
+-- ===== Main frame =====
+local main = new("Frame", {
+    Parent = screenGui, Name = "ModzMain", Size = UDim2.new(0, CONF.WIDTH, 0, CONF.HEIGHT),
+    Position = UDim2.new(0.5, -(CONF.WIDTH/2), 0.5, -(CONF.HEIGHT/2)), BackgroundColor3 = CONF.BG, Visible = false, ZIndex = 998
+})
+new("UICorner", {Parent = main, CornerRadius = UDim.new(0,14)})
+local mainStroke = new("UIStroke", {Parent = main, Color = CONF.ACCENT, Thickness = 1})
+
+-- header
+local header = new("Frame", {Parent = main, Size = UDim2.new(1,0,0,84), BackgroundColor3 = CONF.CARD})
+new("UICorner", {Parent = header, CornerRadius = UDim.new(0,14)})
+local title = new("TextLabel", {Parent = header, Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "⚡ Modz Blox Fruits UI (v2) ⚡", Font = CONF.FONT, TextSize = 22, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Center})
+local closeBtn = new("TextButton", {Parent = header, Size = UDim2.new(0,40,0,40), Position = UDim2.new(1,-12-40,0,22), BackgroundColor3 = CONF.CARD, Text = "✕", Font = CONF.FONT, TextSize = 18, TextColor3 = CONF.TEXT, AutoButtonColor = false})
+new("UICorner", {Parent = closeBtn, CornerRadius = UDim.new(0,10)})
+
+-- body
+local body = new("Frame", {Parent = main, Position = UDim2.new(0,0,0,84), Size = UDim2.new(1,0,1,-84), BackgroundTransparency = 1})
+local sidebar = new("Frame", {Parent = body, Position = UDim2.new(0,12,0,12), Size = UDim2.new(0,280,1,-24), BackgroundColor3 = CONF.CARD})
+new("UICorner", {Parent = sidebar, CornerRadius = UDim.new(0,10)})
+local content = new("Frame", {Parent = body, Position = UDim2.new(0, 304, 0, 12), Size = UDim2.new(1, -316, 1, -24), BackgroundColor3 = Color3.fromRGB(38,38,40)})
+new("UICorner", {Parent = content, CornerRadius = UDim.new(0,10)})
+new("UIStroke", {Parent = content, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+
+-- sidebar header
+local logo = new("Frame", {Parent = sidebar, Size = UDim2.new(1,-24,0,110), BackgroundTransparency = 1, Position = UDim2.new(0,12,0,12)})
+local logoImg = new("ImageLabel", {Parent = logo, Size = UDim2.new(0,76,0,76), Position = UDim2.new(0,8,0,16), BackgroundTransparency = 1, Image = "", ScaleType = Enum.ScaleType.Fit})
+new("UICorner", {Parent = logoImg, CornerRadius = UDim.new(1,0)})
+local brand = new("TextLabel", {Parent = logo, Position = UDim2.new(0,96,0,24), Size = UDim2.new(1,-120,0,48), BackgroundTransparency = 1, Text = "Modz Menu", Font = CONF.FONT, TextSize = 20, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Left})
+
+local tabContainer = new("Frame", {Parent = sidebar, Position = UDim2.new(0,12,0,132), Size = UDim2.new(1,-24,1,-144), BackgroundTransparency = 1})
+local tabList = new("UIListLayout", {Parent = tabContainer, Padding = UDim.new(0,12), SortOrder = Enum.SortOrder.LayoutOrder})
+
+-- pages & tabs
+local pages = {}
+local tabButtons = {}
+local TAB_DEF = {
+    {id="server", name="Thông tin Server", icon="📊"},
+    {id="map", name="Map", icon="🗺"},
+    {id="settings", name="Cài Đặt", icon="⚙️"},
+    {id="events", name="Sự kiện Hot", icon="📰"},
+    {id="boss", name="Boss", icon="👹"},
+    {id="teleport", name="Teleport", icon="✈️"},
+}
+
+local function createTab(parent, txt, ico)
+    local btn = new("TextButton", {Parent = parent, Size = UDim2.new(1,0,0,54), BackgroundColor3 = Color3.fromRGB(52,52,55), AutoButtonColor = false})
+    new("UICorner", {Parent = btn, CornerRadius = UDim.new(0,10)})
+    new("UIStroke", {Parent = btn, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+    local icon = new("TextLabel", {Parent = btn, Position = UDim2.new(0,12,0,8), Size = UDim2.new(0,36,0,36), BackgroundTransparency = 1, Text = ico, Font = CONF.FONT, TextSize = 20, TextColor3 = CONF.TEXT})
+    local label = new("TextLabel", {Parent = btn, Position = UDim2.new(0,60,0,8), Size = UDim2.new(1,-72,0,36), BackgroundTransparency = 1, Text = txt, Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Left})
+    return btn, label, icon
+end
+
+for i,def in ipairs(TAB_DEF) do
+    local btn, lbl, ik = createTab(tabContainer, def.name, def.icon)
+    tabButtons[def.id] = btn
+    local page = new("Frame", {Parent = content, Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Visible = (i==1)})
+    if i ~= 1 then page.Position = UDim2.new(1,0,0,0) end
+    pages[def.id] = page
+
+    btn.MouseButton1Click:Connect(function()
+        for k,v in pairs(tabButtons) do v.BackgroundColor3 = Color3.fromRGB(52,52,55) end
+        btn.BackgroundColor3 = Color3.fromRGB(66,66,70)
+        for name,p in pairs(pages) do
+            if p.Visible and name ~= def.id then
+                TweenService:Create(p, TweenInfo.new(CONF.TWEEN, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Position = UDim2.new(-1,0,0,0)}):Play()
+                delay(CONF.TWEEN, function() p.Visible = false end)
+            end
+        end
+        pages[def.id].Visible = true
+        pages[def.id].Position = UDim2.new(1,0,0,0)
+        TweenService:Create(pages[def.id], TweenInfo.new(CONF.TWEEN, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0,0,0,0)}):Play()
+    end)
+end
+tabButtons["server"].BackgroundColor3 = Color3.fromRGB(66,66,70)
+
+-- ===== helper row =====
+local function makeRow(parent, title, initial, y)
+    local frame = new("Frame", {Parent = parent, Position = UDim2.new(0,16,0,y), Size = UDim2.new(1,-32,0,36), BackgroundTransparency = 1})
+    local tit = new("TextLabel", {Parent = frame, Size = UDim2.new(0.45,0,1,0), BackgroundTransparency = 1, Text = title, Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.MUTED, TextXAlignment = Enum.TextXAlignment.Left})
+    local val = new("TextLabel", {Parent = frame, Size = UDim2.new(0.55,0,1,0), Position = UDim2.new(0.45,0,0,0), BackgroundTransparency = 1, Text = initial or "-", Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Right})
+    return {Frame = frame, Title = tit, Value = val}
+end
+
+-- ===== Page: Server Info (realtime) =====
+do
+    local p = pages["server"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,28), BackgroundTransparency = 1, Text = "Thông tin Server (Realtime)", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local card = new("Frame", {Parent = p, Position = UDim2.new(0,16,0,48), Size = UDim2.new(1,-32,0,260), BackgroundColor3 = CONF.CARD})
+    new("UICorner", {Parent = card, CornerRadius = UDim.new(0,8)})
+
+    local nameRow = makeRow(card, "Tên người chơi", LocalPlayer.Name, 8)
+    local idRow = makeRow(card, "UserId", tostring(LocalPlayer.UserId), 8+36)
+    local levelRow = makeRow(card, "Level", "-", 8+36*2)
+    local beliRow = makeRow(card, "Beli", "-", 8+36*3)
+    local raceRow = makeRow(card, "Race", "-", 8+36*4)
+    local devilRow = makeRow(card, "Devil Fruit", "-", 8+36*5)
+
+    local perf = new("Frame", {Parent = p, Position = UDim2.new(0,16,0,328), Size = UDim2.new(1,-32,0,160), BackgroundColor3 = CONF.CARD})
+    new("UICorner", {Parent = perf, CornerRadius = UDim.new(0,8)})
+    local fpsR = makeRow(perf, "FPS", "0", 8)
+    local pingR = makeRow(perf, "Ping", "—", 8+36)
+    local posR = makeRow(perf, "Tọa độ (X,Y,Z)", "—", 8+36*2)
+    local healthR = makeRow(perf, "Health", "—", 8+36*3)
+
+    -- get stat helper
+    local function getStat(player, name)
+        local ok,val = pcall(function()
+            if player:FindFirstChild("Data") and player.Data:FindFirstChild(name) then
+                return player.Data[name].Value
+            elseif player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild(name) then
+                return player.leaderstats[name].Value
+            end
+            return nil
+        end)
+        return ok and val or nil
+    end
+
+    -- fps calc
+    spawn(function()
+        local last = tick(); local frames = 0
+        while true do
+            frames = frames + 1
+            local now = tick()
+            if now - last >= 0.6 then
+                local fps = math.floor(frames/(now-last) + 0.5)
+                pcall(function() fpsR.Value.Text = tostring(fps) end)
+                frames = 0; last = now
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end)
+
+    -- update loop
+    spawn(function()
+        while true do
+            pcall(function()
+                levelRow.Value.Text = tostring(getStat(LocalPlayer,"Level") or getStat(LocalPlayer,"level") or "-")
+                beliRow.Value.Text = tostring(getStat(LocalPlayer,"Beli") or getStat(LocalPlayer,"beli") or "-")
+                raceRow.Value.Text = tostring(getStat(LocalPlayer,"Race") or getStat(LocalPlayer,"race") or "-")
+                devilRow.Value.Text = tostring(getStat(LocalPlayer,"DevilFruit") or getStat(LocalPlayer,"Fruit") or "-")
+
+                local net = Stats:FindFirstChild("Network")
+                if net and net:FindFirstChild("Data Ping") then
+                    local ping = math.floor(net["Data Ping"].Value)
+                    pingR.Value.Text = ping .. " ms"
+                else
+                    pingR.Value.Text = "—"
+                end
+
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local pos = hrp.Position
+                    posR.Value.Text = string.format("X:%d Y:%d Z:%d", math.floor(pos.X), math.floor(pos.Y), math.floor(pos.Z))
+                    if LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        local hum = LocalPlayer.Character.Humanoid
+                        healthR.Value.Text = string.format("%d / %d", math.floor(hum.Health+0.5), math.floor(hum.MaxHealth+0.5))
+                    else
+                        healthR.Value.Text = "N/A"
+                    end
+                else
+                    posR.Value.Text = "N/A"
+                    healthR.Value.Text = "N/A"
+                end
+            end)
+            task.wait(0.9)
+        end
+    end)
+end
+
+-- ===== Map detection & islands (list) =====
+local ISLANDS = {
+    {name="Starter Island", emoji="🏝️", min=Vector3.new(-700,-500,-700), max=Vector3.new(700,800,700), pos=Vector3.new(0,10,0)},
+    {name="Jungle Island", emoji="🌴", min=Vector3.new(600,-200,-900), max=Vector3.new(1800,900,900), pos=Vector3.new(1200,40,0)},
+    {name="Desert Island", emoji="🏜️", min=Vector3.new(1900,-300,-900), max=Vector3.new(3200,900,900), pos=Vector3.new(2500,40,0)},
+    {name="Sky Island", emoji="☁️", min=Vector3.new(-2000,800,-2000), max=Vector3.new(-1000,2200,2000), pos=Vector3.new(-1500,1200,0)},
+    {name="Frozen Village", emoji="❄️", min=Vector3.new(-1200,-200,-400), max=Vector3.new(-400,900,1200), pos=Vector3.new(-800,60,300)},
+    {name="Marine Fortress", emoji="⚓", min=Vector3.new(3400,-200,-900), max=Vector3.new(4200,900,900), pos=Vector3.new(3800,60,0)},
+    {name="Floating Turtle", emoji="🐢", min=Vector3.new(7000,-500,-900), max=Vector3.new(7600,900,900), pos=Vector3.new(7200,40,0)},
+    {name="Hydra Island", emoji="🐍", min=Vector3.new(7800,-500,-900), max=Vector3.new(8400,900,900), pos=Vector3.new(8000,40,0)},
+    {name="Sea of Treats", emoji="🍭", min=Vector3.new(8600,-500,-900), max=Vector3.new(9200,900,900), pos=Vector3.new(8800,40,0)},
+}
+
+local function isInside(min,max,pos)
+    if not (min and max and pos) then return false end
+    return pos.X >= min.X and pos.X <= max.X and pos.Y >= min.Y and pos.Y <= max.Y and pos.Z >= min.Z and pos.Z <= max.Z
+end
+
+local function findIslandAtPosition(pos)
+    for _,info in ipairs(ISLANDS) do
+        if isInside(info.min, info.max, pos) then return info.name, info.emoji, info.pos end
+    end
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if (obj:IsA("Model") or obj:IsA("BasePart")) then
+            local nm = tostring(obj.Name):lower()
+            if nm:find("island") or nm:find("zone") or nm:find("sea") or nm:find("turtle") then
+                return obj.Name, "📍", (obj:IsA("Model") and (pcall(function() return obj:GetPivot().Position end) and obj:GetPivot().Position) or (obj:IsA("BasePart") and obj.Position))
+            end
+        end
+    end
+    return "Unknown", "❓", nil
+end
+
+-- ===== Map Page =====
+do
+    local p = pages["map"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,24), BackgroundTransparency = 1, Text = "Map (Blox Fruits)", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local card = new("Frame", {Parent = p, Position = UDim2.new(0,16,0,44), Size = UDim2.new(1,-32,0,392), BackgroundColor3 = CONF.CARD})
+    new("UICorner", {Parent = card, CornerRadius = UDim.new(0,8)})
+    local currentLabel = makeRow(card, "Vị trí hiện tại", "Detecting...", 8)
+    local coordLabel = makeRow(card, "Tọa độ", "-", 8+36)
+    local listLabel = new("TextLabel", {Parent = card, Position = UDim2.new(0,16,0,8+36*2+8), Size = UDim2.new(1,-32,0,20), BackgroundTransparency = 1, Text = "Danh sách đảo (TP)", Font = CONF.FONT, TextSize = 13, TextColor3 = CONF.MUTED, TextXAlignment = Enum.TextXAlignment.Left})
+    local scroll = new("ScrollingFrame", {Parent = card, Position = UDim2.new(0,12,0,8+36*2+36), Size = UDim2.new(1,-24,1,- (8+36*2+36) -12), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 8})
+    new("UIListLayout", {Parent = scroll, Padding = UDim.new(0,8)})
+
+    local function createIslandRow(info)
+        local row = new("Frame", {Parent = scroll, Size = UDim2.new(1,0,0,48), BackgroundColor3 = Color3.fromRGB(48,48,50)})
+        new("UICorner", {Parent = row, CornerRadius = UDim.new(0,8)})
+        new("UIStroke", {Parent = row, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+        local lbl = new("TextLabel", {Parent = row, Position = UDim2.new(0,12,0,8), Size = UDim2.new(0.6,-12,0,32), BackgroundTransparency = 1, Text = (info.emoji.." "..info.name), Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Left})
+        local tpBtn = new("TextButton", {Parent = row, Position = UDim2.new(1,-92,0,8), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextSize = 14, TextColor3 = contrastColor(CONF.ACCENT)})
+        new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+
+        local confirm = false
+        tpBtn.MouseButton1Click:Connect(function()
+            if not confirm then
+                tpBtn.Text = "Confirm"
+                confirm = true
+                delay(3, function() if confirm then confirm = false; pcall(function() tpBtn.Text = "TP" end) end end)
+                return
+            end
+            confirm = false
+            pcall(function() tpBtn.Text = "TP" end)
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then
+                pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart", 3) end)
+            end
+            if not hrp then
+                warn("TP failed: no HumanoidRootPart")
+                return
+            end
+            local dest = (info.pos or Vector3.new(0,10,0)) + CONF.TP_OFFSET
+            pcall(function() hrp.CFrame = CFrame.new(dest) end)
+        end)
+    end
+
+    for _,info in ipairs(ISLANDS) do createIslandRow(info) end
+
+    delay(0.06, function()
+        local total = 0
+        for _,c in ipairs(scroll:GetChildren()) do if c:IsA("Frame") then total = total + c.Size.Y.Offset + 8 end end
+        scroll.CanvasSize = UDim2.new(0,0,0,total + 12)
+    end)
+
+    spawn(function()
+        while true do
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local pos = hrp.Position
+                coordLabel.Value.Text = string.format("X:%d Y:%d Z:%d", math.floor(pos.X), math.floor(pos.Y), math.floor(pos.Z))
+                local nm, ico = findIslandAtPosition(pos)
+                currentLabel.Value.Text = tostring(nm) .. " " .. (ico or "")
+            else
+                coordLabel.Value.Text = "N/A"
+                currentLabel.Value.Text = "No character"
+            end
+            task.wait(CONF.MAP_UPDATE)
+        end
+    end)
+end
+
+-- ===== Settings Page (real toggles) =====
+do
+    local p = pages["settings"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,24), BackgroundTransparency = 1, Text = "Cài Đặt", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local card = new("Frame", {Parent = p, Position = UDim2.new(0,16,0,44), Size = UDim2.new(1,-32,0,360), BackgroundColor3 = CONF.CARD})
+    new("UICorner", {Parent = card, CornerRadius = UDim.new(0,8)})
+
+    -- FPS label toggle
+    local fpsToggle = new("TextButton", {Parent = card, Position = UDim2.new(0,16,0,16), Size = UDim2.new(0,220,0,40), Text = "Hiện FPS: ON", Font = CONF.FONT, BackgroundColor3 = Color3.fromRGB(60,60,64), TextColor3 = CONF.TEXT})
+    new("UICorner", {Parent = fpsToggle, CornerRadius = UDim.new(0,8)})
+    local showFPS = true
+    fpsToggle.MouseButton1Click:Connect(function()
+        showFPS = not showFPS
+        fpsToggle.Text = "Hiện FPS: " .. (showFPS and "ON" or "OFF")
+        header.FPSLabel.Visible = showFPS
+    end)
+
+    -- mute sound
+    local musicToggle = new("TextButton", {Parent = card, Position = UDim2.new(0,248,0,16), Size = UDim2.new(0,220,0,40), Text = "Âm thanh: ON", Font = CONF.FONT, BackgroundColor3 = Color3.fromRGB(60,60,64), TextColor3 = CONF.TEXT})
+    new("UICorner", {Parent = musicToggle, CornerRadius = UDim.new(0,8)})
+    local isMuted = false
+    musicToggle.MouseButton1Click:Connect(function()
+        isMuted = not isMuted
+        musicToggle.Text = "Âm thanh: " .. (isMuted and "OFF" or "ON")
+        pcall(function() SoundService.Volume = (isMuted and 0 or 1) end)
+    end)
+
+    -- theme toggle
+    local themeBtn = new("TextButton", {Parent = card, Position = UDim2.new(0,16,0,72), Size = UDim2.new(0,220,0,40), Text = "Chuyển theme", Font = CONF.FONT, BackgroundColor3 = Color3.fromRGB(60,60,64), TextColor3 = CONF.TEXT})
+    new("UICorner", {Parent = themeBtn, CornerRadius = UDim.new(0,8)})
+    local dark = true
+    themeBtn.MouseButton1Click:Connect(function()
+        dark = not dark
+        if dark then
+            main.BackgroundColor3 = CONF.BG
+            content.BackgroundColor3 = Color3.fromRGB(38,38,40)
+            header.BackgroundColor3 = CONF.CARD
+        else
+            main.BackgroundColor3 = Color3.fromRGB(245,245,245)
+            content.BackgroundColor3 = Color3.fromRGB(240,240,240)
+            header.BackgroundColor3 = Color3.fromRGB(220,220,220)
+        end
+    end)
+
+    -- accent swatches
+    local swatches = {CONF.ACCENT, Color3.fromRGB(231,76,60), Color3.fromRGB(46,204,113), Color3.fromRGB(155,89,182), Color3.fromRGB(241,196,15)}
+    for i,col in ipairs(swatches) do
+        local s = new("TextButton", {Parent = card, Position = UDim2.new(0, 16 + (i-1)*46, 0, 128), Size = UDim2.new(0,40,0,40), BackgroundColor3 = col, AutoButtonColor = false})
+        new("UICorner", {Parent = s, CornerRadius = UDim.new(0,8)})
+        s.MouseButton1Click:Connect(function()
+            CONF.ACCENT = col
+            mainStroke.Color = col
+            toggle.BackgroundColor3 = col
+            tlabel.TextColor3 = contrastColor(col)
+        end)
+    end
+
+    -- font picker
+    local fonts = {Enum.Font.GothamSemibold, Enum.Font.SourceSansBold, Enum.Font.Arcade, Enum.Font.SourceSans}
+    local fidx = 1
+    local fontBtn = new("TextButton", {Parent = card, Position = UDim2.new(0,16,0,188), Size = UDim2.new(0,260,0,40), Text = "Font: "..tostring(fonts[fidx].Name), Font = fonts[fidx], BackgroundColor3 = Color3.fromRGB(60,60,64), TextColor3 = CONF.TEXT})
+    new("UICorner", {Parent = fontBtn, CornerRadius = UDim.new(0,8)})
+    fontBtn.MouseButton1Click:Connect(function()
+        fidx = fidx % #fonts + 1
+        for _,obj in ipairs(screenGui:GetDescendants()) do
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                pcall(function() obj.Font = fonts[fidx] end)
+            end
+        end
+        fontBtn.Text = "Font: "..tostring(fonts[fidx].Name)
+    end)
+
+    -- reset pos
+    local resetPos = new("TextButton", {Parent = card, Position = UDim2.new(0,16,0,248), Size = UDim2.new(0,260,0,40), Text = "Reset vị trí menu", Font = CONF.FONT, BackgroundColor3 = Color3.fromRGB(60,60,64), TextColor3 = CONF.TEXT})
+    new("UICorner", {Parent = resetPos, CornerRadius = UDim.new(0,8)})
+    resetPos.MouseButton1Click:Connect(function()
+        main.Position = UDim2.new(0.5, -(CONF.WIDTH/2), 0.5, -(CONF.HEIGHT/2))
+    end)
+end
+
+-- header FPS small label
+header.FPSLabel = new("TextLabel", {Parent = header, Position = UDim2.new(0,16,0,12), Size = UDim2.new(0,140,0,28), BackgroundTransparency = 1, Text = "FPS: 0", Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Left})
+header.FPSLabel.Visible = true
+
+spawn(function()
+    local last = tick(); local frames = 0
+    while true do
+        frames = frames + 1
+        local now = tick()
+        if now - last >= 0.6 then
+            local fps = math.floor(frames/(now-last) + 0.5)
+            pcall(function() header.FPSLabel.Text = "FPS: "..tostring(fps) end)
+            frames = 0; last = now
+        end
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+-- ===== Events Page =====
+do
+    local p = pages["events"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,24), BackgroundTransparency = 1, Text = "Sự kiện Hot", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local scroll = new("ScrollingFrame", {Parent = p, Position = UDim2.new(0,16,0,44), Size = UDim2.new(1,-32,1,-56), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 8})
+    new("UIListLayout", {Parent = scroll, Padding = UDim.new(0,8)})
+
+    local function createCard(ev)
+        local card = new("Frame", {Parent = scroll, Size = UDim2.new(1,-8,0,92), BackgroundColor3 = CONF.CARD})
+        new("UICorner", {Parent = card, CornerRadius = UDim.new(0,8)})
+        new("UIStroke", {Parent = card, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+        new("TextLabel", {Parent = card, Position = UDim2.new(0,12,0,8), Size = UDim2.new(1,-24,0,22), BackgroundTransparency = 1, Text = ev.title, Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT})
+        new("TextLabel", {Parent = card, Position = UDim2.new(0,12,0,30), Size = UDim2.new(1,-24,0,18), BackgroundTransparency = 1, Text = "Ngày: "..ev.date, Font = CONF.FONT, TextSize = 12, TextColor3 = CONF.MUTED})
+        local desc = new("TextLabel", {Parent = card, Position = UDim2.new(0,12,0,48), Size = UDim2.new(1,-24,0,36), BackgroundTransparency = 1, Text = ev.desc, Font = CONF.FONT, TextSize = 13, TextColor3 = CONF.TEXT, TextWrapped = true})
+        -- TP if position provided
+        if ev.pos then
+            local tpBtn = new("TextButton", {Parent = card, Position = UDim2.new(1,-92,0,30), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextColor3 = contrastColor(CONF.ACCENT)})
+            new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+            local confirm = false
+            tpBtn.MouseButton1Click:Connect(function()
+                if not confirm then tpBtn.Text = "Confirm"; confirm = true; delay(3, function() if confirm then confirm=false; pcall(function() tpBtn.Text = "TP" end) end end); return end
+                confirm = false; pcall(function() tpBtn.Text = "TP" end)
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not hrp then pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart",3) end) end
+                if hrp then pcall(function() hrp.CFrame = CFrame.new(ev.pos + CONF.TP_OFFSET) end) end
+            end)
+        end
+    end
+
+    local function fetchEvents()
+        local out = {}
+        pcall(function()
+            if ReplicatedStorage:FindFirstChild("Events") then
+                for _,v in ipairs(ReplicatedStorage.Events:GetChildren()) do
+                    table.insert(out, {title = v.Name, date = os.date("%d/%m/%Y %H:%M:%S"), desc = "Event object in ReplicatedStorage", pos = (v:IsA("Model") and (pcall(function() return v:GetPivot().Position end) and v:GetPivot().Position) or nil)})
+                end
+            end
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") and tostring(obj.Name):lower():find("event") then
+                    local pos = pcall(function() return obj:GetPivot().Position end) and obj:GetPivot().Position or nil
+                    table.insert(out, {title = obj.Name, date = os.date("%d/%m/%Y %H:%M:%S"), desc = "Event object found in workspace", pos = pos})
+                end
+            end
+        end)
+        if #out == 0 then
+            table.insert(out, {title = "2x EXP Weekend", date = os.date("%d/%m/%Y %H:%M:%S"), desc = "Double experience this weekend.", pos = nil})
+            table.insert(out, {title = "Rare Chest Respawn", date = os.date("%d/%m/%Y %H:%M:%S"), desc = "Rare chests spawned across islands.", pos = nil})
+        end
+        return out
+    end
+
+    local function refresh()
+        for _,c in ipairs(scroll:GetChildren()) do if c:IsA("Frame") then c:Destroy() end end
+        local arr = fetchEvents()
+        for _,ev in ipairs(arr) do createCard(ev) end
+        local total = 0
+        for _,v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") then total = total + v.Size.Y.Offset + 8 end end
+        scroll.CanvasSize = UDim2.new(0,0,0,total + 12)
+    end
+
+    refresh()
+    task.spawn(function()
+        while true do
+            task.wait(CONF.EVENT_REFRESH)
+            pcall(refresh)
+        end
+    end)
+end
+
+-- ===== Boss Page =====
+do
+    local p = pages["boss"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,24), BackgroundTransparency = 1, Text = "Boss", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local scroll = new("ScrollingFrame", {Parent = p, Position = UDim2.new(0,16,0,44), Size = UDim2.new(1,-32,1,-56), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 8})
+    new("UIListLayout", {Parent = scroll, Padding = UDim.new(0,8)})
+
+    local function createRow(name, alive, model)
+        local row = new("Frame", {Parent = scroll, Size = UDim2.new(1,-8,0,48), BackgroundColor3 = CONF.CARD})
+        new("UICorner", {Parent = row, CornerRadius = UDim.new(0,8)})
+        new("UIStroke", {Parent = row, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+        new("TextLabel", {Parent = row, Position = UDim2.new(0,12,0,8), Size = UDim2.new(1,-140,0,32), BackgroundTransparency = 1, Text = name, Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT, TextXAlignment = Enum.TextXAlignment.Left})
+        local dot = new("Frame", {Parent = row, Size = UDim2.new(0,14,0,14), Position = UDim2.new(1,-112,0,17), BackgroundColor3 = alive and Color3.fromRGB(60,180,60) or Color3.fromRGB(220,60,60)})
+        new("UICorner", {Parent = dot, CornerRadius = UDim.new(1,0)})
+        local tpBtn = new("TextButton", {Parent = row, Position = UDim2.new(1,-92,0,8), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextSize = 14, TextColor3 = contrastColor(CONF.ACCENT)})
+        new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+
+        local confirm = false
+        tpBtn.MouseButton1Click:Connect(function()
+            if not confirm then
+                tpBtn.Text = "Confirm"; confirm = true
+                delay(3, function() if confirm then confirm = false; pcall(function() tpBtn.Text = "TP" end) end end)
+                return
+            end
+            confirm = false; pcall(function() tpBtn.Text = "TP" end)
+            if model then
+                local pos = (pcall(function() return model:GetPivot().Position end) and model:GetPivot().Position) or (model:IsA("BasePart") and model.Position) or nil
+                if pos then
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not hrp then pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart",3) end) end
+                    if hrp then pcall(function() hrp.CFrame = CFrame.new(pos + CONF.TP_OFFSET) end)
+                end
+            end
+        end)
+    end
+
+    local function scanBosses()
+        local out = {}
+        pcall(function()
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local nm = tostring(obj.Name):lower()
+                    if nm:find("boss") or nm:find("raid") or nm:find("giant") or nm:find("admiral") or nm:find("yeti") or nm:find("gorilla") then
+                        table.insert(out, obj)
+                    end
+                end
+            end
+        end)
+        return out
+    end
+
+    local function refreshBoss()
+        for _,c in ipairs(scroll:GetChildren()) do if c:IsA("Frame") then c:Destroy() end end
+        local arr = scanBosses()
+        if #arr == 0 then
+            createRow("Không tìm thấy boss trong map", false, nil)
+        else
+            local seen = {}
+            for _,obj in ipairs(arr) do
+                local nm = (obj.Name and tostring(obj.Name)) or "Boss"
+                if not seen[nm] then
+                    seen[nm] = true
+                    local alive = false
+                    pcall(function()
+                        if obj:FindFirstChildWhichIsA("Humanoid") then
+                            local hum = obj:FindFirstChildWhichIsA("Humanoid")
+                            if hum and hum.Health and hum.Health > 0 then alive = true end
+                        else
+                            alive = true
+                        end
+                    end)
+                    createRow(nm, alive, obj)
+                end
+            end
+        end
+        local total = 0
+        for _,v in ipairs(scroll:GetChildren()) do if v:IsA("Frame") then total = total + v.Size.Y.Offset + 8 end end
+        scroll.CanvasSize = UDim2.new(0,0,0,total + 12)
+    end
+
+    refreshBoss()
+    task.spawn(function() while true do task.wait(CONF.BOSS_REFRESH); pcall(refreshBoss) end end)
+end
+
+-- ===== Teleport Page (combined quick TP) =====
+do
+    local p = pages["teleport"]
+    new("TextLabel", {Parent = p, Position = UDim2.new(0,16,0,12), Size = UDim2.new(1,-32,0,24), BackgroundTransparency = 1, Text = "Teleport (Islands / Boss / Events)", Font = CONF.FONT, TextSize = 16, TextColor3 = CONF.TEXT})
+    local scroll = new("ScrollingFrame", {Parent = p, Position = UDim2.new(0,16,0,44), Size = UDim2.new(1,-32,1,-56), BackgroundTransparency = 1, CanvasSize = UDim2.new(0,0,0,0), ScrollBarThickness = 8})
+    new("UIListLayout", {Parent = scroll, Padding = UDim.new(0,8)})
+
+    -- Islands section
+    local headerIs = new("TextLabel", {Parent = scroll, Size = UDim2.new(1,-8,0,28), BackgroundTransparency = 1, Text = "Islands", Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.MUTED})
+    headerIs.LayoutOrder = 1
+
+    for _,info in ipairs(ISLANDS) do
+        local row = new("Frame", {Parent = scroll, Size = UDim2.new(1,-8,0,48), BackgroundColor3 = Color3.fromRGB(48,48,50)})
+        new("UICorner", {Parent = row, CornerRadius = UDim.new(0,8)})
+        new("UIStroke", {Parent = row, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+        new("TextLabel", {Parent = row, Position = UDim2.new(0,12,0,8), Size = UDim2.new(0.6,-12,0,32), BackgroundTransparency = 1, Text = (info.emoji.." "..info.name), Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT})
+        local tpBtn = new("TextButton", {Parent = row, Position = UDim2.new(1,-92,0,8), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextColor3 = contrastColor(CONF.ACCENT)})
+        new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+        local confirm = false
+        tpBtn.MouseButton1Click:Connect(function()
+            if not confirm then tpBtn.Text="Confirm"; confirm=true; delay(3,function() if confirm then confirm=false; pcall(function() tpBtn.Text="TP" end) end end); return end
+            confirm=false; pcall(function() tpBtn.Text="TP" end)
+            local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart",3) end) end
+            if hrp then pcall(function() hrp.CFrame = CFrame.new(info.pos + CONF.TP_OFFSET) end) end
+        end)
+    end
+
+    -- Boss section (only alive)
+    local headerBo = new("TextLabel", {Parent = scroll, Size = UDim2.new(1,-8,0,28), BackgroundTransparency = 1, Text = "Boss (Alive)", Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.MUTED})
+    headerBo.LayoutOrder = 100
+    local function addBossRows()
+        -- remove previous boss frames (but keep header)
+        for _,c in ipairs(scroll:GetChildren()) do
+            if c:IsA("Frame") and c:FindFirstChild("IsBossRow") then c:Destroy() end
+        end
+        local arr = {}
+        pcall(function()
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local nm = tostring(obj.Name):lower()
+                    if nm:find("boss") or nm:find("raid") or nm:find("giant") or nm:find("admiral") or nm:find("yeti") or nm:find("gorilla") then
+                        table.insert(arr, obj)
+                    end
+                end
+            end
+        end)
+        for _,m in ipairs(arr) do
+            local alive = false
+            pcall(function()
+                if m:FindFirstChildWhichIsA("Humanoid") then
+                    local h = m:FindFirstChildWhichIsA("Humanoid")
+                    if h and h.Health and h.Health > 0 then alive = true end
+                else alive = true end
+            end)
+            if alive then
+                local nm = (m.Name and tostring(m.Name)) or "Boss"
+                local row = new("Frame", {Parent = scroll, Size = UDim2.new(1,-8,0,48), BackgroundColor3 = Color3.fromRGB(48,48,50)})
+                row.Name = "BossRow"
+                row:SetAttribute("IsBossRow", true)
+                new("UICorner", {Parent = row, CornerRadius = UDim.new(0,8)})
+                new("UIStroke", {Parent = row, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+                new("TextLabel", {Parent = row, Position = UDim2.new(0,12,0,8), Size = UDim2.new(0.6,-12,0,32), BackgroundTransparency = 1, Text = nm, Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT})
+                local tpBtn = new("TextButton", {Parent = row, Position = UDim2.new(1,-92,0,8), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextColor3 = contrastColor(CONF.ACCENT)})
+                new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+                local confirm = false
+                tpBtn.MouseButton1Click:Connect(function()
+                    if not confirm then tpBtn.Text="Confirm"; confirm=true; delay(3,function() if confirm then confirm=false; pcall(function() tpBtn.Text="TP" end) end end); return end
+                    confirm=false; pcall(function() tpBtn.Text="TP" end)
+                    local pos = (pcall(function() return m:GetPivot().Position end) and m:GetPivot().Position) or nil
+                    if pos then local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") if not hrp then pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart",3) end) end if hrp then pcall(function() hrp.CFrame = CFrame.new(pos + CONF.TP_OFFSET) end) end end
+                end)
+            end
+        end
+    end
+    -- call once and periodically
+    addBossRows()
+    task.spawn(function() while true do task.wait(8); pcall(addBossRows) end end)
+
+    -- Events with positions
+    local headerEv = new("TextLabel", {Parent = scroll, Size = UDim2.new(1,-8,0,28), BackgroundTransparency = 1, Text = "Events (with TP)", Font = CONF.FONT, TextSize = 14, TextColor3 = CONF.MUTED})
+    headerEv.LayoutOrder = 200
+    local function addEventRows()
+        -- remove previous event frames with attribute
+        for _,c in ipairs(scroll:GetChildren()) do
+            if c:IsA("Frame") and c:GetAttribute("IsEventRow") then c:Destroy() end
+        end
+        local arr = {}
+        pcall(function()
+            for _,v in ipairs(ReplicatedStorage:GetChildren()) do
+                if tostring(v.Name):lower():find("event") then
+                    local pos = (v:IsA("Model") and (pcall(function() return v:GetPivot().Position end) and v:GetPivot().Position)) or nil
+                    table.insert(arr, {title = v.Name, pos = pos})
+                end
+            end
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") and tostring(obj.Name):lower():find("event") then
+                    local pos = (pcall(function() return obj:GetPivot().Position end) and obj:GetPivot().Position) or nil
+                    table.insert(arr, {title = obj.Name, pos = pos})
+                end
+            end
+        end)
+        for _,ev in ipairs(arr) do
+            local row = new("Frame", {Parent = scroll, Size = UDim2.new(1,-8,0,48), BackgroundColor3 = Color3.fromRGB(48,48,50)})
+            row:SetAttribute("IsEventRow", true)
+            new("UICorner", {Parent = row, CornerRadius = UDim.new(0,8)})
+            new("UIStroke", {Parent = row, Color = Color3.fromRGB(50,50,54), Thickness = 1})
+            new("TextLabel", {Parent = row, Position = UDim2.new(0,12,0,8), Size = UDim2.new(0.6,-12,0,32), BackgroundTransparency = 1, Text = ev.title, Font = CONF.FONT, TextSize = 15, TextColor3 = CONF.TEXT})
+            if ev.pos then
+                local tpBtn = new("TextButton", {Parent = row, Position = UDim2.new(1,-92,0,8), Size = UDim2.new(0,80,0,32), BackgroundColor3 = CONF.ACCENT, Text = "TP", Font = CONF.FONT, TextColor3 = contrastColor(CONF.ACCENT)})
+                new("UICorner", {Parent = tpBtn, CornerRadius = UDim.new(0,8)})
+                local confirm = false
+                tpBtn.MouseButton1Click:Connect(function()
+                    if not confirm then tpBtn.Text="Confirm"; confirm=true; delay(3,function() if confirm then confirm=false; pcall(function() tpBtn.Text="TP" end) end end); return end
+                    confirm=false; pcall(function() tpBtn.Text="TP" end)
+                    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not hrp then pcall(function() hrp = LocalPlayer.Character:WaitForChild("HumanoidRootPart",3) end) end
+                    if hrp then pcall(function() hrp.CFrame = CFrame.new(ev.pos + CONF.TP_OFFSET) end) end
+                end)
+            end
+        end
+    end
+    addEventRows()
+    task.spawn(function() while true do task.wait(30); pcall(addEventRows) end end)
+
+    delay(0.06, function()
+        local total = 0
+        for _,c in ipairs(scroll:GetChildren()) do if c:IsA("Frame") or c:IsA("TextLabel") then total = total +  (c.Size.Y.Offset or 28) + 8 end end
+        scroll.CanvasSize = UDim2.new(0,0,0, total + 20)
+    end)
+end
+
+-- ===== Draggable behaviors =====
+do
+    local dragging, dragInput, dragStart, startPos
+    main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true; dragStart = input.Position; startPos = main.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    main.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+    RunService.Heartbeat:Connect(function()
+        if dragging and dragInput and dragStart and startPos then
+            local delta = dragInput.Position - dragStart
+            local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            pcall(function() main.Position = newPos end)
+        end
+    end)
+end
+do
+    local dragging, dragInput, dragStart, startPos
+    toggle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true; dragStart = input.Position; startPos = toggle.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    toggle.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+    RunService.Heartbeat:Connect(function()
+        if dragging and dragInput and dragStart and startPos then
+            local delta = dragInput.Position - dragStart
+            local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            pcall(function() toggle.Position = newPos end)
+        end
+    end)
+end
+
+-- ===== Open/Close with blur & tween =====
+local opened = false
+local function openMenu()
+    if opened then return end
+    opened = true
+    main.Visible = true
+    pcall(function() blur.Enabled = true; blur.Size = CONF.BLUR_SIZE end)
+    local target = main.Position
+    main.Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset - 40)
+    TweenService:Create(main, TweenInfo.new(CONF.TWEEN, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = target}):Play()
+    TweenService:Create(toggle, TweenInfo.new(0.12), {Size = UDim2.new(0,100,0,100)}):Play()
+end
+local function closeMenu()
+    if not opened then return end
+    opened = false
+    pcall(function() blur.Size = 0; blur.Enabled = false end)
+    local outPos = UDim2.new(main.Position.X.Scale, main.Position.X.Offset, main.Position.Y.Scale, main.Position.Y.Offset - 50)
+    TweenService:Create(main, TweenInfo.new(CONF.TWEEN, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = outPos}):Play()
+    TweenService:Create(toggle, TweenInfo.new(0.12), {Size = UDim2.new(0,92,0,92)}):Play()
+    delay(CONF.TWEEN + 0.02, function() if not opened then main.Visible = false end end)
+end
+
+toggle.MouseButton1Click:Connect(function() if opened then closeMenu() else openMenu() end end)
+closeBtn.MouseButton1Click:Connect(closeMenu)
+UserInputService.InputBegan:Connect(function(inp, gpe) if gpe then return end if inp.KeyCode == Enum.KeyCode.Escape and opened then closeMenu() end end)
+
+-- ensure first page visible
+for k,p in pairs(pages) do p.Visible = false end
+pages["server"].Visible = true; pages["server"].Position = UDim2.new(0,0,0,0)
+
+-- visuals
+mainStroke.Color = CONF.ACCENT
+toggle.BackgroundColor3 = CONF.ACCENT
+tlabel.TextColor3 = contrastColor(CONF.ACCENT)
+
+print("[ModzBloxFruitsUI_v2] Loaded — Menu ready. Use toggle to open. Teleport included (confirm twice).")
