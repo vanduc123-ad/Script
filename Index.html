@@ -1,0 +1,375 @@
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged,
+  signOut,
+  updateProfile,
+  signInAnonymously,
+  signInWithCustomToken
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  addDoc, 
+  onSnapshot, 
+  deleteDoc, 
+  query,
+  orderBy
+} from 'firebase/firestore';
+import { 
+  LayoutDashboard, 
+  FileBox, 
+  ShieldCheck, 
+  Plus, 
+  Trash2, 
+  LogOut, 
+  X, 
+  Download, 
+  FileText, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  AlertCircle, 
+  Loader2, 
+  Globe,
+  UploadCloud,
+  User,
+  Search,
+  Settings,
+  Bell
+} from 'lucide-react';
+
+// Cấu hình Firebase từ môi trường thực thi
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-cloud-pro';
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [notes, setNotes] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [authMode, setAuthMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [showPass, setShowPass] = useState(false);
+
+  const [noteForm, setNoteForm] = useState({ title: '', content: '' });
+  const [fileForm, setFileForm] = useState({ name: '', url: '', type: 'APK', description: '' });
+
+  useEffect(() => {
+    // Tối ưu tiêu đề trang cho SEO
+    document.title = "Nexus Cloud - Hệ thống quản trị dữ liệu chuyên nghiệp";
+    
+    const init = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        try { await signInWithCustomToken(auth, __initial_auth_token); } catch(e) {}
+      }
+    };
+    init();
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Listen Notes (Private User Data)
+    const qNotes = collection(db, 'artifacts', appId, 'users', user.uid, 'notes');
+    const unsubNotes = onSnapshot(qNotes, (s) => {
+      setNotes(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => console.error("Firestore Note Error:", e));
+
+    // Listen Public Files (Community Data)
+    const qFiles = collection(db, 'artifacts', appId, 'public', 'data', 'files');
+    const unsubFiles = onSnapshot(qFiles, (s) => {
+      setFiles(s.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (e) => console.error("Firestore File Error:", e));
+
+    return () => { unsubNotes(); unsubFiles(); };
+  }, [user]);
+
+  const handleAuthentication = async (e) => {
+    e.preventDefault();
+    setError('');
+    setAuthLoading(true);
+    try {
+      if (authMode === 'login') {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        if (password.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự');
+        const res = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(res.user, { displayName: fullName || 'Thành viên Nexus' });
+      }
+    } catch (err) {
+      console.error("Auth Error Code:", err.code);
+      let msg = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+      switch (err.code) {
+        case 'auth/email-already-in-use': msg = 'Email này đã được đăng ký.'; break;
+        case 'auth/invalid-email': msg = 'Định dạng Email không hợp lệ.'; break;
+        case 'auth/weak-password': msg = 'Mật khẩu quá yếu (cần tối thiểu 6 ký tự).'; break;
+        case 'auth/user-not-found':
+        case 'auth/wrong-password': msg = 'Email hoặc mật khẩu không chính xác.'; break;
+        case 'auth/operation-not-allowed': msg = 'Vui lòng sử dụng tính năng Đăng nhập ẩn danh hoặc liên hệ admin.'; break;
+      }
+      setError(msg);
+    } finally { setAuthLoading(false); }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    try {
+      if (activeTab === 'dashboard') {
+        await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'notes'), {
+          ...noteForm, timestamp: new Date().toISOString()
+        });
+        setNoteForm({ title: '', content: '' });
+      } else {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'files'), {
+          ...fileForm, 
+          uploader: user.displayName || 'Anonymous',
+          uploaderId: user.uid,
+          timestamp: new Date().toISOString()
+        });
+        setFileForm({ name: '', url: '', type: 'APK', description: '' });
+      }
+      setIsModalOpen(false);
+    } catch (e) { console.error("Write Error:", e); }
+  };
+
+  const removeItem = async (id, type) => {
+    if (!confirm('Hành động này không thể hoàn tác. Bạn chắc chắn muốn xóa?')) return;
+    try {
+      const path = type === 'note' 
+        ? doc(db, 'artifacts', appId, 'users', user.uid, 'notes', id)
+        : doc(db, 'artifacts', appId, 'public', 'data', 'files', id);
+      await deleteDoc(path);
+    } catch (e) { console.error("Delete Error:", e); }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-6">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+        <Globe className="w-6 h-6 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+      </div>
+      <p className="text-slate-500 font-bold tracking-[0.3em] text-[10px] uppercase">Nexus Systems Loading...</p>
+    </div>
+  );
+
+  if (!user) return (
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-[420px] space-y-8 animate-in fade-in zoom-in duration-500">
+        <div className="text-center space-y-4">
+          <div className="inline-block p-4 bg-blue-600/10 rounded-3xl border border-blue-500/20 shadow-2xl shadow-blue-500/10">
+            <Globe className="w-10 h-10 text-blue-500" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-tight">NEXUS CLOUD</h1>
+          <p className="text-slate-500 text-sm font-medium">Hệ thống quản trị và chia sẻ dữ liệu trực tuyến</p>
+        </div>
+
+        <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl">
+          <div className="flex bg-slate-950/50 p-1 rounded-2xl mb-8 border border-slate-800">
+            <button onClick={()=>setAuthMode('login')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${authMode === 'login' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>ĐĂNG NHẬP</button>
+            <button onClick={()=>setAuthMode('register')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${authMode === 'register' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>ĐĂNG KÝ</button>
+          </div>
+
+          <form onSubmit={handleAuthentication} className="space-y-4">
+            {authMode === 'register' && (
+              <div className="space-y-1">
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                  <input required type="text" placeholder="Họ và tên người dùng" value={fullName} onChange={e=>setFullName(e.target.value)}
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:border-blue-500 outline-none transition-all font-medium text-sm" />
+                </div>
+              </div>
+            )}
+            <div className="space-y-1">
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                <input required type="email" placeholder="Địa chỉ Email" value={email} onChange={e=>setEmail(e.target.value)}
+                  className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:border-blue-500 outline-none transition-all font-medium text-sm" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                <input required type={showPass ? 'text' : 'password'} placeholder="Mật khẩu bảo mật" value={password} onChange={e=>setPassword(e.target.value)}
+                  className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 pl-12 pr-12 text-white focus:border-blue-500 outline-none transition-all font-medium text-sm tracking-widest" />
+                <button type="button" onClick={()=>setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors">
+                  {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold rounded-2xl flex items-center gap-3 animate-pulse"><AlertCircle className="w-5 h-5 shrink-0" /> {error}</div>}
+
+            <button disabled={authLoading} type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-600/20 active:scale-95 text-xs tracking-widest uppercase">
+              {authLoading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : (authMode === 'login' ? 'Truy cập hệ thống' : 'Tạo tài khoản mới')}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <button 
+              type="button"
+              onClick={async () => {
+                setAuthLoading(true);
+                try { await signInAnonymously(auth); } catch(e) { setError("Lỗi đăng nhập khách."); }
+                finally { setAuthLoading(false); }
+              }}
+              className="text-slate-500 hover:text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+            >
+              Tiếp tục với vai trò khách truy cập
+            </button>
+          </div>
+        </div>
+        <p className="text-center text-slate-700 text-[10px] font-bold uppercase tracking-[0.3em]">© 2026 Nexus Cloud Platform</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-blue-500/30">
+      {/* Navigation Desktop */}
+      <nav className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <Globe className="w-6 h-6 text-white" />
+            </div>
+            <div className="leading-none">
+              <span className="font-black text-xl tracking-tighter text-white uppercase">NEXUS</span>
+              <p className="text-[8px] font-black text-blue-500 tracking-[0.3em] uppercase">Cloud System</p>
+            </div>
+          </div>
+          
+          <div className="hidden md:flex items-center gap-2 p-1 bg-slate-900 border border-slate-800 rounded-2xl">
+            <button onClick={()=>setActiveTab('dashboard')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>DASHBOARD</button>
+            <button onClick={()=>setActiveTab('storage')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${activeTab === 'storage' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>STORAGE</button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="hidden lg:block text-right">
+              <p className="text-xs font-black text-white uppercase">{user.isAnonymous ? 'Guest' : (user.displayName || 'User')}</p>
+              <p className="text-[10px] text-slate-500 font-medium">Trực tuyến</p>
+            </div>
+            <button onClick={()=>signOut(auth)} className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all border border-red-500/20">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-16">
+          <div className="space-y-2">
+            <h2 className="text-5xl font-black text-white tracking-tight uppercase">
+              {activeTab === 'dashboard' ? 'Overview' : 'Library'}
+            </h2>
+            <div className="flex items-center gap-3 text-slate-500">
+              <ShieldCheck className="w-4 h-4 text-green-500" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Hệ thống bảo mật đa tầng Nexus</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm dữ liệu..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full sm:w-64 bg-slate-900 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:border-blue-500 outline-none transition-all"
+              />
+            </div>
+            <button onClick={()=>setIsModalOpen(true)} className="bg-white text-black px-8 py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all shadow-2xl hover:bg-blue-500 hover:text-white active:scale-95 uppercase text-xs tracking-widest">
+              <Plus className="w-6 h-6" /> {activeTab === 'dashboard' ? 'Tạo mới' : 'Upload File'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {activeTab === 'dashboard' ? (
+            notes.filter(n => n.title.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+              <EmptyState icon={<FileText />} title="Không tìm thấy bản ghi" />
+            ) : (
+              notes.filter(n => n.title.toLowerCase().includes(searchTerm.toLowerCase())).map(n => (
+                <div key={n.id} className="group bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] hover:border-blue-500/40 transition-all duration-300 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4">
+                    <button onClick={()=>removeItem(n.id, 'note')} className="text-slate-700 hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                  </div>
+                  <div className="w-14 h-14 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center mb-6"><FileText className="w-7 h-7" /></div>
+                  <h3 className="text-xl font-black text-white mb-3 uppercase tracking-tight line-clamp-1">{n.title}</h3>
+                  <p className="text-slate-400 text-sm font-medium leading-relaxed mb-8 line-clamp-3">{n.content}</p>
+                  <div className="pt-6 border-t border-slate-800/50 flex justify-between items-center">
+                    <span className="text-[10px] text-slate-600 font-black uppercase tracking-tighter">ID: {n.id.slice(0,12)}</span>
+                    <span className="text-[10px] text-slate-600 font-bold">{new Date(n.timestamp).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))
+            )
+          ) : (
+            files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
+              <EmptyState icon={<UploadCloud />} title="Thư viện trống" />
+            ) : (
+              files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
+                <div key={f.id} className="group bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden hover:border-blue-500/40 transition-all duration-300">
+                  <div className="p-8">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${f.type === 'APK' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>{f.type}</div>
+                      {f.uploaderId === user.uid && (
+                        <button onClick={()=>removeItem(f.id, 'file')} className="text-slate-700 hover:text-red-500 transition-all"><Trash2 className="w-5 h-5" /></button>
+                      )}
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter line-clamp-1">{f.name}</h3>
+                    <p className="text-slate-500 text-[10px] font-black uppercase mb-6 tracking-widest italic">Shared by {f.uploader}</p>
+                    <p className="text-slate-400 text-sm font-medium leading-relaxed mb-10 line-clamp-2 h-10">{f.description || 'No additional information provided.'}</p>
+                    <a href={f.url} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-3 bg-white hover:bg-blue-600 text-black hover:text-white py-5 rounded-[1.5rem] text-xs font-black transition-all shadow-xl active:scale-95 uppercase tracking-widest">
+                      <Download className="w-5 h-5" /> Tải về máy
+                    </a>
+                  </div>
+                </div>
+              ))
+            )
+          )}
+        </div>
+      </main>
+
+      {/* Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-md">
+          <div className="absolute inset-0" onClick={()=>setIsModalOpen(false)}></div>
+          <form onSubmit={handleAddItem} className="relative bg-slate-900 border border-slate-800 w-full max-w-lg p-10 rounded-[3rem] shadow-2xl animate-in slide-in-from-bottom-20 duration-300">
+            <div className="flex justify-between items-center mb-10">
+              <h3 className="text-3xl font-black text-white uppercase tracking-tighter">{activeTab === 'dashboard' ? 'New Entry' : 'Share File'}</h3>
+              <button type="button" onClick={()=>setIsModalOpen(false)} className="text-slate-600 hover:text-white transition-colors"><X className="w-8 h-8" /></button>
+            </div>
+
+            <div className="space-y-8">
+              {activeTab === 'dashboard' ? (
+                <>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Tiêu đề bản ghi</label>
+                    <input required value={noteForm.title} onChange={e=>setNoteForm({...noteForm, title: e.target.value})}
+                      className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-4 px-6 text-white outline-none focus:border-blue-500 transition-all font-bold" placeholder="..." />
+          </div>
